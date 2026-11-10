@@ -1,5 +1,5 @@
 {
-  "collect_mode": "manual",
+  "collect_mode": "both",
   "league_id": 19905,
   "manual_match_file": "matches.txt",
   "refresh_recent": 5,

@@ -1,10 +1,10 @@
 {
   "schema_version": 2,
   "league_id": 19905,
-  "collection_mode": "manual",
+  "collection_mode": "both",
   "league": {
-    "name": "懂王杯光荣榜",
-    "tier": "manual",
+    "name": "懂王杯",
+    "tier": "excluded",
     "banner": ""
   },
   "site": {
@@ -14,7 +14,7 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-10T13:40:26.185838+00:00",
+  "generated_at_utc": "2026-11-10T15:56:25.795082+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {

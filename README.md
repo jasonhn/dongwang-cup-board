@@ -38,8 +38,8 @@
 
 | 字段 | 作用 |
 |---|---|
-| `collect_mode` | `league`：按官方联赛 ID 归集比赛；`manual`：按 `matches.txt` 里手动登记的 `match_id` 归集 |
-| `league_id` | `league` 模式下必填。申请 Amateur League 后拿到，或直接用现成联赛试跑 |
+| `collect_mode` | `league`：只按联赛 ID 归集；`manual`：只按 `matches.txt` 手动登记的 `match_id`；`both`：两者合并统计（推荐） |
+| `league_id` | `league` 或 `both` 模式下必填。申请 Amateur League 后拿到，也可以用 `--league-name` 反查 |
 | `manual_match_file` | `manual` 模式的比赛清单，每行一个 `match_id`，`#` 开头是注释 |
 | `refresh_recent` | 每次刷新重新抓最近 N 场（补全还没解析完的比赛），其余用仓库里已有的缓存，省 API 额度 |
 | `time_zone` | 看板显示与输入框用的时区，例如 `Asia/Shanghai` |
@@ -90,7 +90,7 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 
 可选：在仓库 Settings → Secrets and variables → Actions 里新建 `OPENDOTA_API_KEY`。脚本默认走匿名免费接口（约 60 次/分钟、3000 次/天），额度用尽才会改用带 Key 的请求，并且有 `OPENDOTA_MAX_PAID_CALLS` 上限保护。Key 只存在 Secret 或本地 `.env`，不会进仓库。
 
-## 两种收数据的方式
+## 三种收数据的方式
 
 ### `league` 模式（最省心）
 
@@ -105,6 +105,16 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 3. push，看板自动更新。
 
 `manual` 模式不校验比赛属于哪个联赛，普通房间、开黑房间都能收，比赛按开始时间排序。
+
+### `both` 模式（两边都要）
+
+联赛自动归集加上 `matches.txt` 里手动登记的场次，一起统计；同一个 `match_id` 不会重复抓。适合“大部分比赛走联赛开房，偶尔有普通房间要补录”的群。
+
+## 为什么联赛里打过的比赛没被收录
+
+先查 OpenDota 有没有这场：`GET /api/leagues/<league_id>/matchIds`。如果这个列表是空的，说明这场比赛**没有带 `leagueid`**，十有八九是从自定义房间或普通房开的，不是从客户端「联赛」入口开的房——联赛名存在，不代表比赛会挂到它下面。
+
+开黑排天梯匹配（`game_mode 22`）永远不会带联赛标记，这类比赛只能靠 `matches.txt` 手动登记。
 
 ## 群昵称映射
 
@@ -125,6 +135,7 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 - **必须开“公开比赛数据”**：客户端 Settings → Game → Expose Public Match Data。没开的话比赛会被匿名化，看板对不上人（数据里的 `anonymous_player_slots` 会告诉你有多少个位置是匿名）。
 - **回放约 10 天过期**：过期后只剩基础数据，眼位、经济曲线等细节拿不到。本看板只用基础字段，所以不受影响，但想留细节要尽早解析。
 - **普通房间不会自动进联赛**：所以要么申请联赛，要么用 `manual` 模式手动登记。
+- **`manual` 模式不会自动收联赛比赛**：以后改走联赛开房的话，记得把 `collect_mode` 改成 `both` 或 `league`，否则联赛里的比赛会被忽略。
 - **匿名接口有限流**：脚本遇到限流会等到下一分钟再试，遇到日额度耗尽才切到带 Key 的请求。别在本地写高频轮询。
 - **数据是公开的**：看板会把 Steam 昵称和 `account_id` 公开挂在网页上，群内部用没问题，公开传播前想清楚。
 

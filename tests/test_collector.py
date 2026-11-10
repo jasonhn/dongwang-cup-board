@@ -8,6 +8,7 @@ from collector import (
     _stable_snapshot_timestamp,
     collect_league_data,
     collect_manual_data,
+    collect_snapshot,
     find_league_id,
     load_config,
     load_display_names,
@@ -233,3 +234,81 @@ def test_stable_timestamp_when_content_unchanged(tmp_path: Path) -> None:
     changed = {**payload, "generated_at_utc": "2026-01-02T00:00:00+00:00", "matches": []}
     bumped = _stable_snapshot_timestamp(path, changed)
     assert bumped["generated_at_utc"] == "2026-01-02T00:00:00+00:00"
+
+
+def test_read_manual_match_ids_can_allow_empty(tmp_path: Path) -> None:
+    path = tmp_path / "matches.txt"
+    path.write_text("# 只有注释\n", encoding="utf-8")
+
+    assert read_manual_match_ids(path, require_non_empty=False) == []
+
+
+def test_both_mode_merges_league_and_manual_matches(tmp_path: Path) -> None:
+    manual_file = tmp_path / "matches.txt"
+    manual_file.write_text("2\n", encoding="utf-8")
+    league_match = make_match(1, league_id=19905)
+    league_match["start_time"] = 1_800_000_001
+    extra_match = make_match(2, league_id=0)
+    extra_match["start_time"] = 1_800_000_002
+    config = {
+        **DEFAULT_CONFIG,
+        "collect_mode": "both",
+        "league_id": 19905,
+        "manual_match_file": str(manual_file),
+    }
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1],
+            "/matches/1": league_match,
+            "/matches/2": extra_match,
+        }
+    )
+
+    payload = collect_snapshot(
+        config=config, client=client, output_path=tmp_path / "league.json"  # type: ignore[arg-type]
+    )
+
+    assert payload["collection_mode"] == "both"
+    assert [match["match_id"] for match in payload["matches"]] == [1, 2]
+    assert payload["league"]["name"] == "懂王杯"
+    assert payload["metadata"]["match_ids_returned"] == 2
+
+
+def test_both_mode_does_not_fetch_duplicates_twice(tmp_path: Path) -> None:
+    manual_file = tmp_path / "matches.txt"
+    manual_file.write_text("1\n", encoding="utf-8")
+    config = {
+        **DEFAULT_CONFIG,
+        "collect_mode": "both",
+        "league_id": 19905,
+        "manual_match_file": str(manual_file),
+    }
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1],
+            "/matches/1": make_match(1, league_id=19905),
+        }
+    )
+
+    payload = collect_snapshot(
+        config=config, client=client, output_path=tmp_path / "league.json"  # type: ignore[arg-type]
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [1]
+    assert client.requested.count("/matches/1") == 1
+
+
+def test_both_mode_requires_a_league_id(tmp_path: Path) -> None:
+    config = {**DEFAULT_CONFIG, "collect_mode": "both", "league_id": 0}
+    client = FakeClient({})
+
+    try:
+        collect_snapshot(
+            config=config, client=client, output_path=tmp_path / "league.json"  # type: ignore[arg-type]
+        )
+    except LeagueCollectionError as error:
+        assert "league_id is required" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")

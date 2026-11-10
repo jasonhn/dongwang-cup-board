@@ -240,9 +240,9 @@ def load_config(path: Path) -> dict[str, Any]:
     config["site"] = {**DEFAULT_CONFIG["site"], **(site if isinstance(site, dict) else {})}
 
     mode = str(config.get("collect_mode") or "league").strip().lower()
-    if mode not in {"league", "manual"}:
+    if mode not in {"league", "manual", "both"}:
         raise LeagueCollectionError(
-            f"collect_mode must be 'league' or 'manual', got {raw.get('collect_mode')!r}"
+            f"collect_mode must be 'league', 'manual' or 'both', got {raw.get('collect_mode')!r}"
         )
     config["collect_mode"] = mode
 
@@ -283,9 +283,11 @@ def load_display_names(path: Path) -> dict[str, str]:
     return names
 
 
-def read_manual_match_ids(path: Path) -> list[int]:
+def read_manual_match_ids(path: Path, *, require_non_empty: bool = True) -> list[int]:
     if not path.exists():
-        raise LeagueCollectionError(f"Manual match file not found: {path}")
+        if require_non_empty:
+            raise LeagueCollectionError(f"Manual match file not found: {path}")
+        return []
     match_ids: set[int] = set()
     for line in path.read_text(encoding="utf-8").splitlines():
         entry = line.split("#", 1)[0].strip().replace(",", "")
@@ -298,7 +300,9 @@ def read_manual_match_ids(path: Path) -> list[int]:
         if match_id > 0:
             match_ids.add(match_id)
     if not match_ids:
-        raise LeagueCollectionError(f"No match id found in {path}")
+        if require_non_empty:
+            raise LeagueCollectionError(f"No match id found in {path}")
+        return []
     return sorted(match_ids)
 
 
@@ -519,6 +523,82 @@ def collect_manual_data(
     )
 
 
+def collect_snapshot(
+    *,
+    config: dict[str, Any],
+    client: OpenDotaLeagueClient,
+    output_path: Path,
+    names: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Collect according to collect_mode: league, manual, or both together."""
+    mode = config["collect_mode"]
+    league_enabled = mode in {"league", "both"}
+    manual_enabled = mode in {"manual", "both"}
+
+    if league_enabled and int(config["league_id"]) <= 0:
+        raise LeagueCollectionError(
+            "league_id is required when collect_mode is 'league' or 'both'"
+        )
+
+    if league_enabled and not manual_enabled:
+        return collect_league_data(
+            league_id=int(config["league_id"]),
+            output_path=output_path,
+            refresh_recent=int(config["refresh_recent"]),
+            client=client,
+            names=names,
+            config=config,
+        )
+    if manual_enabled and not league_enabled:
+        return collect_manual_data(
+            match_ids=read_manual_match_ids(Path(config["manual_match_file"])),
+            output_path=output_path,
+            refresh_recent=int(config["refresh_recent"]),
+            client=client,
+            names=names,
+            config=config,
+        )
+
+    league_payload = collect_league_data(
+        league_id=int(config["league_id"]),
+        output_path=output_path,
+        refresh_recent=int(config["refresh_recent"]),
+        client=client,
+        names=names,
+        config=config,
+    )
+    manual_ids = read_manual_match_ids(
+        Path(config["manual_match_file"]), require_non_empty=False
+    )
+    known = {int(match["match_id"]) for match in league_payload["matches"]}
+    extra_ids = [match_id for match_id in manual_ids if match_id not in known]
+    if not extra_ids:
+        return league_payload
+
+    manual_payload = collect_manual_data(
+        match_ids=extra_ids,
+        output_path=output_path,
+        refresh_recent=int(config["refresh_recent"]),
+        client=client,
+        names=names,
+        config=config,
+    )
+    merged: dict[int, dict[str, Any]] = {
+        int(match["match_id"]): match for match in league_payload["matches"]
+    }
+    merged.update({int(match["match_id"]): match for match in manual_payload["matches"]})
+
+    return _build_payload(
+        config=config,
+        league_info=league_payload["league"],
+        ordered_matches=_order_matches(merged),
+        match_ids_returned=int(league_payload["metadata"]["match_ids_returned"]) + len(extra_ids),
+        unavailable=league_payload["metadata"]["unavailable_matches"]
+        + manual_payload["metadata"]["unavailable_matches"],
+        client=client,
+    )
+
+
 def write_snapshot(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(f"{path.suffix}.tmp")
@@ -566,7 +646,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=("league", "manual"),
+        choices=("league", "manual", "both"),
         default=None,
         help="Override config.json collect_mode",
     )
@@ -599,37 +679,23 @@ def main(argv: list[str] | None = None) -> int:
             config["collect_mode"] = "league"
             config["league_id"] = find_league_id(client, args.league_name)
             print(f"Resolved {args.league_name!r} to league id {config['league_id']}")
-        if config["collect_mode"] == "manual":
-            payload = collect_manual_data(
-                match_ids=read_manual_match_ids(Path(config["manual_match_file"])),
-                output_path=config["output"],
-                refresh_recent=config["refresh_recent"],
-                client=client,
-                names=names,
-                config=config,
-            )
-        else:
-            if not config["league_id"]:
-                raise LeagueCollectionError(
-                    "league_id is required in league mode (set it in config.json)"
-                )
-            payload = collect_league_data(
-                league_id=config["league_id"],
-                output_path=config["output"],
-                refresh_recent=config["refresh_recent"],
-                client=client,
-                names=names,
-                config=config,
-            )
+        payload = collect_snapshot(
+            config=config,
+            client=client,
+            output_path=config["output"],
+            names=names,
+        )
 
     # Compare against the file on disk before overwriting it.
     payload = _stable_snapshot_timestamp(config["output"], payload)
     write_snapshot(config["output"], payload)
     metadata = payload["metadata"]
     label = (
-        f"league {config['league_id']}"
-        if config["collect_mode"] == "league"
-        else f"manual list ({metadata['match_ids_returned']} ids)"
+        {
+            "league": f"league {config['league_id']}",
+            "manual": f"manual list ({metadata['match_ids_returned']} ids)",
+            "both": f"league {config['league_id']} + manual list",
+        }[config["collect_mode"]]
     )
     print(
         f"{label}: wrote {metadata['matches_available']} matches to {config['output']} "

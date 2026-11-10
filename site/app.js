@@ -398,11 +398,18 @@ function bindControls() {
   });
 }
 
+function collectionLabel(data) {
+  if (data.collection_mode === "manual") return "手动收录";
+  if (data.collection_mode === "both") return `联赛 ${data.league_id} + 手动登记`;
+  return `联赛 ${data.league_id}`;
+}
+
 function showEmptySnapshot(data) {
   const scope =
     data.collection_mode === "manual"
       ? "手动登记的清单"
-      : `联赛 ${data.league_id}${data.league?.name ? `（${data.league.name}）` : ""}`;
+      : `联赛 ${data.league_id}${data.league?.name ? `（${data.league.name}）` : ""}` +
+        (data.collection_mode === "both" ? " 加上手动登记的清单" : "");
   elements.heroStatus.textContent = "还没有战报入册";
   const parsed = Date.parse(data.generated_at_utc || "");
   const generated = Number.isFinite(parsed) ? parsed / 1000 : Date.now() / 1000;
@@ -451,8 +458,7 @@ async function load() {
       input.max = toLocalInput(state.maximum);
     }
 
-    const scope =
-      data.collection_mode === "manual" ? "手动收录" : `联赛 ${data.league_id}`;
+    const scope = collectionLabel(data);
     elements.heroStatus.textContent = `${data.matches.length} 场战报已入册 · ${scope}`;
     const generated = Date.parse(data.generated_at_utc) / 1000;
     elements.updateStamp.textContent = `数据更新时间：${formatLocal(generated)} ${timeZoneLabel(generated)}`;
@@ -462,7 +468,7 @@ async function load() {
       elements.sourceText.textContent =
         data.collection_mode === "manual"
           ? `每天自动刷新手动登记的 ${data.metadata?.match_ids_returned ?? data.matches.length} 场比赛。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。`
-          : `每天自动刷新联赛 ${data.league_id}。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。`;
+          : `每天自动刷新${data.collection_mode === "both" ? `联赛 ${data.league_id} 和手动登记的场次` : `联赛 ${data.league_id}`}。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。`;
     }
     elements.availableCount.textContent = String(data.metadata?.matches_available ?? data.matches.length);
     showCoverageNotice(data);
