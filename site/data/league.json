@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-10T13:36:49.059093+00:00",
+  "generated_at_utc": "2026-11-10T13:40:26.185838+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 1,
-    "matches_available": 1,
+    "match_ids_returned": 3,
+    "matches_available": 3,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -27,6 +27,164 @@
     "anonymous_daily_quota_exhausted": false
   },
   "matches": [
+    {
+      "match_id": 9081139900,
+      "league_id": 0,
+      "start_time": 1794117021,
+      "duration": 1811,
+      "radiant_win": false,
+      "players": [
+        {
+          "account_id": 186759995,
+          "personaname": "HELLO",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 31
+        },
+        {
+          "account_id": 196542869,
+          "personaname": "Rxq小仙女❥(^_-)",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 41
+        },
+        {
+          "account_id": 384179164,
+          "personaname": "天才交易员",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 49
+        },
+        {
+          "account_id": 288265572,
+          "personaname": "派拉斯特的钳子",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 121
+        },
+        {
+          "account_id": 1443449213,
+          "personaname": "小巧麦芽糖",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 36
+        },
+        {
+          "account_id": 1608923432,
+          "personaname": "爱弥斯",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 17
+        },
+        {
+          "account_id": 758322538,
+          "personaname": "小猪快跑",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 60
+        },
+        {
+          "account_id": 1847152070,
+          "personaname": "FFFFFFFi",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 108
+        },
+        {
+          "account_id": 335060654,
+          "personaname": "专治不举郭大夫",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 18
+        },
+        {
+          "account_id": 129964895,
+          "personaname": "Monkey see Monkey do",
+          "display_name": "Monkey see Monkey do",
+          "player_slot": 132,
+          "hero_id": 64
+        }
+      ]
+    },
+    {
+      "match_id": 9081169937,
+      "league_id": 0,
+      "start_time": 1794119241,
+      "duration": 2164,
+      "radiant_win": false,
+      "players": [
+        {
+          "account_id": 250835140,
+          "personaname": "ꗞ",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 14
+        },
+        {
+          "account_id": 909859769,
+          "personaname": "wcs三亚王喷火龙铁粉",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 55
+        },
+        {
+          "account_id": 393339354,
+          "personaname": "章邯",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 36
+        },
+        {
+          "account_id": 143399775,
+          "personaname": "王翦",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 31
+        },
+        {
+          "account_id": 349206049,
+          "personaname": "李牧",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 44
+        },
+        {
+          "account_id": 1272147533,
+          "personaname": "sigam",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 96
+        },
+        {
+          "account_id": 1276134919,
+          "personaname": "林天晓",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 75
+        },
+        {
+          "account_id": 335060654,
+          "personaname": "专治不举郭大夫",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 8
+        },
+        {
+          "account_id": 1847152070,
+          "personaname": "FFFFFFFi",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 135
+        },
+        {
+          "account_id": 129964895,
+          "personaname": "Monkey see Monkey do",
+          "display_name": "Monkey see Monkey do",
+          "player_slot": 132,
+          "hero_id": 64
+        }
+      ]
+    },
     {
       "match_id": 9084142516,
       "league_id": 0,
