@@ -444,7 +444,11 @@ async function load() {
   } catch (error) {
     elements.heroStatus.textContent = "战报暂时未能展开";
     elements.updateStamp.textContent = "数据读取失败";
-    elements.coverageNotice.textContent = `暂时无法读取联赛数据：${error.message}`;
+    elements.coverageNotice.textContent =
+      globalThis.location?.protocol === "file:"
+        ? "浏览器不允许网页从本地文件读取数据。请在项目根目录运行 python -m http.server -d site 8080，" +
+          "然后打开 http://localhost:8080；或者直接部署到 GitHub Pages 用线上地址访问。"
+        : `暂时无法读取联赛数据：${error.message}`;
     elements.coverageNotice.hidden = false;
     elements.statsEmpty.hidden = false;
     elements.matrixEmpty.hidden = false;

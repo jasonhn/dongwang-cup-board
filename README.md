@@ -62,6 +62,8 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 
 然后打开 <http://localhost:8080>。
 
+> **不要直接双击 `site/index.html`。** 用 `file://` 打开时浏览器禁止网页读取本地 JSON，页面会显示“战报暂时未能展开”。必须用上面的 HTTP 服务（或部署到 GitHub Pages）访问。
+
 命令行参数会覆盖 `config.json`，方便临时试：
 
 ```bash
@@ -108,6 +110,7 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 
 ## 前提与坑
 
+- **不需要任何账号登录。** 看板是纯静态网页，浏览器只读仓库里的 `site/data/league.json`，不会直连 OpenDota，也不需要 Steam 账号、Steam 密码或 Steam Web API Key。数据由 `collector.py` 在本地或 GitHub Actions 里抓取（匿名即可），抓取结果作为文件提交进仓库。可选的 `OPENDOTA_API_KEY` 只是一个 API 令牌，同样不是登录。
 - **必须开“公开比赛数据”**：客户端 Settings → Game → Expose Public Match Data。没开的话比赛会被匿名化，看板对不上人（数据里的 `anonymous_player_slots` 会告诉你有多少个位置是匿名）。
 - **回放约 10 天过期**：过期后只剩基础数据，眼位、经济曲线等细节拿不到。本看板只用基础字段，所以不受影响，但想留细节要尽早解析。
 - **普通房间不会自动进联赛**：所以要么申请联赛，要么用 `manual` 模式手动登记。
