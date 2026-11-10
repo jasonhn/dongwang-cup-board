@@ -1,4 +1,4 @@
-name: Refresh and deploy 科大光荣榜
+name: Refresh and deploy 内战看板
 
 on:
   push:
@@ -9,9 +9,12 @@ on:
       - "site/**"
       - "collector.py"
       - "requirements.txt"
+      - "config.json"
+      - "names.json"
+      - "matches.txt"
       - "tests/**"
   schedule:
-    # 10:00 JST every day (GitHub cron is UTC).
+    # 每天 UTC 01:00，也就是北京时间 09:00。GitHub cron 用 UTC，改时间时记得换算。
     - cron: "0 1 * * *"
   workflow_dispatch:
 
@@ -21,7 +24,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: ustc-dota2-hall-of-fame-pages
+  group: dota2-internal-league-pages
   cancel-in-progress: false
 
 jobs:
@@ -50,20 +53,17 @@ jobs:
           OPENDOTA_API_KEY: ${{ secrets.OPENDOTA_API_KEY }}
           OPENDOTA_MAX_PAID_CALLS: "250"
         run: >-
-          python collector.py
-          --league-id 19224
-          --output site/data/league.json
-          --refresh-recent 5
+          python collector.py --config config.json
 
       - name: Persist refreshed data
         run: |
-          if git diff --quiet -- site/data/league.json; then
+          if git diff --quiet -- "$(python -c "import json;print(json.load(open('config.json'))['output'])")"; then
             echo "League data is unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/data/league.json
+          git add "$(python -c "import json;print(json.load(open('config.json'))['output'])")"
           git commit -m "Refresh league dashboard data"
           git push
 

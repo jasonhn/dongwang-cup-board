@@ -6,12 +6,12 @@
     <meta name="theme-color" content="#970018" />
     <meta
       name="description"
-      content="科大光荣榜 Dota 2 内战战绩：按时间筛选玩家胜负与组队胜率。"
+      content="Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
     />
-    <title>科大光荣榜 · Dota 2 内战战绩</title>
+    <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20261103-2" />
-    <script src="./app.js?v=20261103-2" type="module"></script>
+    <link rel="stylesheet" href="./styles.css?v=20261110-1" />
+    <script src="./app.js?v=20261110-1" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -26,9 +26,11 @@
       </div>
 
       <div class="hero-copy">
-        <div class="hero-kicker"><span>✦</span> 内战有喜 · 荣耀登榜 <span>✦</span></div>
-        <h1 class="hero-title" data-text="科大光荣榜" aria-label="科大光荣榜">科大光荣榜</h1>
-        <p class="hero-subtitle">Dota 2 内战战绩</p>
+        <div class="hero-kicker">
+          <span>✦</span> <span id="heroKicker">内战有喜 · 荣耀登榜</span> <span>✦</span>
+        </div>
+        <h1 class="hero-title" id="heroTitle" data-text="内战光荣榜" aria-label="内战光荣榜">内战光荣榜</h1>
+        <p class="hero-subtitle" id="heroSubtitle">Dota 2 内战战绩</p>
         <div class="hero-seals" aria-label="数据状态">
           <span class="seal">战</span>
           <span class="hero-status" id="heroStatus">正在迎接战报……</span>
@@ -56,12 +58,12 @@
 
         <div class="date-fields">
           <label>
-            <span>开始时间（JST）</span>
+            <span>开始时间<span id="fromTzLabel">（UTC+08）</span></span>
             <input id="fromDate" type="datetime-local" step="60" />
           </label>
           <div class="date-divider" aria-hidden="true">至</div>
           <label>
-            <span>结束时间（JST）</span>
+            <span>结束时间<span id="toTzLabel">（UTC+08）</span></span>
             <input id="toDate" type="datetime-local" step="60" />
           </label>
         </div>
@@ -169,8 +171,8 @@
         <div class="source-icon">源</div>
         <div>
           <strong>数据来自 OpenDota 公开接口</strong>
-          <p>
-            每天 JST 10:00 自动刷新联赛 19224。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。
+          <p id="sourceText">
+            每天自动刷新。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。
           </p>
         </div>
       </section>
@@ -178,7 +180,7 @@
 
     <footer>
       <span aria-hidden="true">❖</span>
-      <p>科大光荣榜 · 胜负皆尽兴，开黑常有喜</p>
+      <p id="footerLine">内战光荣榜 · 胜负皆尽兴，开黑常有喜</p>
       <span aria-hidden="true">❖</span>
     </footer>
   </body>

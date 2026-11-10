@@ -1,13 +1,21 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "league_id": 19224,
+  "collection_mode": "league",
   "league": {
     "name": "干嘛，要加班",
     "tier": "excluded",
     "banner": ""
   },
-  "generated_at_utc": "2026-11-10T01:04:07.155449+00:00",
-  "time_zone": "Asia/Tokyo",
+  "site": {
+    "title": "内战光荣榜",
+    "subtitle": "Dota 2 内战战绩",
+    "kicker": "内战有喜 · 荣耀登榜",
+    "footer": "内战光荣榜 · 胜负皆尽兴，开黑常有喜",
+    "description": "Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
+  },
+  "generated_at_utc": "2026-11-10T10:43:11.275123+00:00",
+  "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
     "match_ids_returned": 7,
@@ -30,61 +38,71 @@
           "account_id": 137665114,
           "personaname": "此间乐不思蜀",
           "player_slot": 0,
-          "hero_id": 2
+          "hero_id": 2,
+          "display_name": null
         },
         {
           "account_id": 192820566,
           "personaname": "系从尚父出，术奉武侯来！",
           "player_slot": 1,
-          "hero_id": 19
+          "hero_id": 19,
+          "display_name": null
         },
         {
           "account_id": 274556888,
           "personaname": "通天河灵感大王",
           "player_slot": 2,
-          "hero_id": 102
+          "hero_id": 102,
+          "display_name": null
         },
         {
           "account_id": 138814542,
           "personaname": "坂",
           "player_slot": 3,
-          "hero_id": 9
+          "hero_id": 9,
+          "display_name": null
         },
         {
           "account_id": 372120492,
           "personaname": "volatil",
           "player_slot": 4,
-          "hero_id": 73
+          "hero_id": 73,
+          "display_name": null
         },
         {
           "account_id": 158575430,
           "personaname": "飞总今天赢了吗",
           "player_slot": 128,
-          "hero_id": 53
+          "hero_id": 53,
+          "display_name": null
         },
         {
           "account_id": 179241773,
           "personaname": "山西大同钢化膜",
           "player_slot": 129,
-          "hero_id": 51
+          "hero_id": 51,
+          "display_name": null
         },
         {
           "account_id": 182576139,
           "personaname": "狼JOKER",
           "player_slot": 130,
-          "hero_id": 108
+          "hero_id": 108,
+          "display_name": null
         },
         {
           "account_id": 138832851,
           "personaname": "盗书空间",
           "player_slot": 131,
-          "hero_id": 10
+          "hero_id": 10,
+          "display_name": null
         },
         {
           "account_id": 488258433,
           "personaname": "koromo",
           "player_slot": 132,
-          "hero_id": 101
+          "hero_id": 101,
+          "display_name": null
         }
       ]
     },
@@ -99,61 +117,71 @@
           "account_id": 336663862,
           "personaname": "杨柳春风一杯酒",
           "player_slot": 0,
-          "hero_id": 8
+          "hero_id": 8,
+          "display_name": null
         },
         {
           "account_id": 138920607,
           "personaname": "霸气大爷",
           "player_slot": 1,
-          "hero_id": 26
+          "hero_id": 26,
+          "display_name": null
         },
         {
           "account_id": 472620947,
           "personaname": "drone pudding",
           "player_slot": 2,
-          "hero_id": 85
+          "hero_id": 85,
+          "display_name": null
         },
         {
           "account_id": 192820566,
           "personaname": "系从尚父出，术奉武侯来！",
           "player_slot": 3,
-          "hero_id": 47
+          "hero_id": 47,
+          "display_name": null
         },
         {
           "account_id": 139649281,
           "personaname": "平湖秋月丶",
           "player_slot": 4,
-          "hero_id": 129
+          "hero_id": 129,
+          "display_name": null
         },
         {
           "account_id": 274556888,
           "personaname": "通天河灵感大王",
           "player_slot": 128,
-          "hero_id": 74
+          "hero_id": 74,
+          "display_name": null
         },
         {
           "account_id": 158575430,
           "personaname": "飞总今天赢了吗",
           "player_slot": 129,
-          "hero_id": 64
+          "hero_id": 64,
+          "display_name": null
         },
         {
           "account_id": 138832851,
           "personaname": "盗书空间",
           "player_slot": 130,
-          "hero_id": 119
+          "hero_id": 119,
+          "display_name": null
         },
         {
           "account_id": 353392019,
           "personaname": "兴复汉室，还于旧都",
           "player_slot": 131,
-          "hero_id": 98
+          "hero_id": 98,
+          "display_name": null
         },
         {
           "account_id": 122251899,
           "personaname": "KKEN",
           "player_slot": 132,
-          "hero_id": 54
+          "hero_id": 54,
+          "display_name": null
         }
       ]
     },
@@ -167,60 +195,70 @@
         {
           "account_id": 138832851,
           "personaname": "盗书空间",
+          "display_name": null,
           "player_slot": 0,
           "hero_id": 9
         },
         {
           "account_id": 274556888,
           "personaname": "通天河灵感大王",
+          "display_name": null,
           "player_slot": 1,
           "hero_id": 69
         },
         {
           "account_id": 122251899,
           "personaname": "KKEN",
+          "display_name": null,
           "player_slot": 2,
           "hero_id": 71
         },
         {
           "account_id": 353392019,
           "personaname": "兴复汉室，还于旧都",
+          "display_name": null,
           "player_slot": 3,
           "hero_id": 120
         },
         {
           "account_id": 336663862,
           "personaname": "杨柳春风一杯酒",
+          "display_name": null,
           "player_slot": 4,
           "hero_id": 21
         },
         {
           "account_id": 158575430,
           "personaname": "飞总今天赢了吗",
+          "display_name": null,
           "player_slot": 128,
           "hero_id": 22
         },
         {
           "account_id": 138920607,
           "personaname": "霸气大爷",
+          "display_name": null,
           "player_slot": 129,
           "hero_id": 108
         },
         {
           "account_id": 139649281,
           "personaname": "平湖秋月丶",
+          "display_name": null,
           "player_slot": 130,
           "hero_id": 20
         },
         {
           "account_id": 192820566,
           "personaname": "系从尚父出，术奉武侯来！",
+          "display_name": null,
           "player_slot": 131,
           "hero_id": 128
         },
         {
           "account_id": 472620947,
           "personaname": "drone pudding",
+          "display_name": null,
           "player_slot": 132,
           "hero_id": 123
         }
@@ -236,60 +274,70 @@
         {
           "account_id": 139649281,
           "personaname": "平湖秋月丶",
+          "display_name": null,
           "player_slot": 0,
           "hero_id": 7
         },
         {
           "account_id": 122251899,
           "personaname": "KKEN",
+          "display_name": null,
           "player_slot": 1,
           "hero_id": 62
         },
         {
           "account_id": 138832851,
           "personaname": "盗书空间",
+          "display_name": null,
           "player_slot": 2,
           "hero_id": 54
         },
         {
           "account_id": 472620947,
           "personaname": "drone pudding",
+          "display_name": null,
           "player_slot": 3,
           "hero_id": 31
         },
         {
           "account_id": 336663862,
           "personaname": "杨柳春风一杯酒",
+          "display_name": null,
           "player_slot": 4,
           "hero_id": 13
         },
         {
           "account_id": 274556888,
           "personaname": "通天河灵感大王",
+          "display_name": null,
           "player_slot": 128,
           "hero_id": 41
         },
         {
           "account_id": 158575430,
           "personaname": "飞总今天赢了吗",
+          "display_name": null,
           "player_slot": 129,
           "hero_id": 17
         },
         {
           "account_id": 138920607,
           "personaname": "霸气大爷",
+          "display_name": null,
           "player_slot": 130,
           "hero_id": 87
         },
         {
           "account_id": 353392019,
           "personaname": "兴复汉室，还于旧都",
+          "display_name": null,
           "player_slot": 131,
           "hero_id": 88
         },
         {
           "account_id": 192820566,
           "personaname": "系从尚父出，术奉武侯来！",
+          "display_name": null,
           "player_slot": 132,
           "hero_id": 36
         }
@@ -305,60 +353,70 @@
         {
           "account_id": 138814542,
           "personaname": "坂",
+          "display_name": null,
           "player_slot": 0,
           "hero_id": 85
         },
         {
           "account_id": 372120492,
           "personaname": "volatil",
+          "display_name": null,
           "player_slot": 1,
           "hero_id": 30
         },
         {
           "account_id": 193915131,
           "personaname": "水上由岐",
+          "display_name": null,
           "player_slot": 2,
           "hero_id": 106
         },
         {
           "account_id": 243513067,
           "personaname": "被狼认可的牧羊人",
+          "display_name": null,
           "player_slot": 3,
           "hero_id": 28
         },
         {
           "account_id": 883819932,
           "personaname": "重新启程",
+          "display_name": null,
           "player_slot": 4,
           "hero_id": 91
         },
         {
           "account_id": 182754056,
           "personaname": "nameless422",
+          "display_name": null,
           "player_slot": 128,
           "hero_id": 123
         },
         {
           "account_id": 140721966,
           "personaname": "Hayabusa",
+          "display_name": null,
           "player_slot": 129,
           "hero_id": 1
         },
         {
           "account_id": 136619313,
           "personaname": "WC.BCSZSZ",
+          "display_name": null,
           "player_slot": 130,
           "hero_id": 5
         },
         {
           "account_id": 255076729,
           "personaname": "Stellaris",
+          "display_name": null,
           "player_slot": 131,
           "hero_id": 42
         },
         {
           "account_id": 274556888,
           "personaname": "通天河灵感大王",
+          "display_name": null,
           "player_slot": 132,
           "hero_id": 36
         }
@@ -374,60 +432,70 @@
         {
           "account_id": 140721966,
           "personaname": "Hayabusa",
+          "display_name": null,
           "player_slot": 0,
           "hero_id": 86
         },
         {
           "account_id": 883819932,
           "personaname": "重新启程",
+          "display_name": null,
           "player_slot": 1,
           "hero_id": 53
         },
         {
           "account_id": 138814542,
           "personaname": "坂",
+          "display_name": null,
           "player_slot": 2,
           "hero_id": 135
         },
         {
           "account_id": 182754056,
           "personaname": "nameless422",
+          "display_name": null,
           "player_slot": 3,
           "hero_id": 71
         },
         {
           "account_id": 372120492,
           "personaname": "volatil",
+          "display_name": null,
           "player_slot": 4,
           "hero_id": 22
         },
         {
           "account_id": 255076729,
           "personaname": "Stellaris",
+          "display_name": null,
           "player_slot": 128,
           "hero_id": 97
         },
         {
           "account_id": 136619313,
           "personaname": "WC.BCSZSZ",
+          "display_name": null,
           "player_slot": 129,
           "hero_id": 123
         },
         {
           "account_id": 243513067,
           "personaname": "被狼认可的牧羊人",
+          "display_name": null,
           "player_slot": 130,
           "hero_id": 41
         },
         {
           "account_id": 193915131,
           "personaname": "水上由岐",
+          "display_name": null,
           "player_slot": 131,
           "hero_id": 106
         },
         {
           "account_id": 274556888,
           "personaname": "通天河灵感大王",
+          "display_name": null,
           "player_slot": 132,
           "hero_id": 28
         }
@@ -443,60 +511,70 @@
         {
           "account_id": 193915131,
           "personaname": "水上由岐",
+          "display_name": null,
           "player_slot": 0,
           "hero_id": 29
         },
         {
           "account_id": 140721966,
           "personaname": "Hayabusa",
+          "display_name": null,
           "player_slot": 1,
           "hero_id": 6
         },
         {
           "account_id": 136619313,
           "personaname": "WC.BCSZSZ",
+          "display_name": null,
           "player_slot": 2,
           "hero_id": 87
         },
         {
           "account_id": 292823960,
           "personaname": "最上30",
+          "display_name": null,
           "player_slot": 3,
           "hero_id": 47
         },
         {
           "account_id": 372120492,
           "personaname": "volatil",
+          "display_name": null,
           "player_slot": 4,
           "hero_id": 30
         },
         {
           "account_id": 255076729,
           "personaname": "Stellaris",
+          "display_name": null,
           "player_slot": 128,
           "hero_id": 97
         },
         {
           "account_id": 883819932,
           "personaname": "重新启程",
+          "display_name": null,
           "player_slot": 129,
           "hero_id": 98
         },
         {
           "account_id": 243513067,
           "personaname": "被狼认可的牧羊人",
+          "display_name": null,
           "player_slot": 130,
           "hero_id": 44
         },
         {
           "account_id": 274556888,
           "personaname": "通天河灵感大王",
+          "display_name": null,
           "player_slot": 131,
           "hero_id": 110
         },
         {
           "account_id": 182754056,
           "personaname": "nameless422",
+          "display_name": null,
           "player_slot": 132,
           "hero_id": 31
         }

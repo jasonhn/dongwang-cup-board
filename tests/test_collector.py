@@ -1,7 +1,18 @@
+import json
 from pathlib import Path
 from typing import Any
 
-from collector import collect_league_data, normalise_match, write_snapshot
+from collector import (
+    DEFAULT_CONFIG,
+    LeagueCollectionError,
+    collect_league_data,
+    collect_manual_data,
+    load_config,
+    load_display_names,
+    normalise_match,
+    read_manual_match_ids,
+    write_snapshot,
+)
 
 
 def make_match(match_id: int, *, league_id: int = 19224) -> dict[str, Any]:
@@ -72,3 +83,106 @@ def test_collector_reuses_old_matches_and_refreshes_recent(tmp_path: Path) -> No
     assert "/matches/2" in client.requested
     assert payload["metadata"]["matches_available"] == 2
     assert payload["metadata"]["anonymous_player_slots"] == 0
+
+
+def test_normalise_match_keeps_display_name(tmp_path: Path) -> None:
+    match = normalise_match(make_match(1), 19224, names={"1000": "小明", "1001": "阿强"})
+
+    assert match["players"][0]["display_name"] == "小明"
+    assert match["players"][1]["display_name"] == "阿强"
+    assert match["players"][2]["display_name"] is None
+
+
+def test_league_mode_rejects_foreign_match(tmp_path: Path) -> None:
+    client = FakeClient(
+        {
+            "/leagues/19224": {"name": "Test League"},
+            "/leagues/19224/matchIds": [1],
+            "/matches/1": make_match(1, league_id=999),
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19224,
+        output_path=tmp_path / "league.json",
+        refresh_recent=1,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    assert payload["matches"] == []
+    assert payload["metadata"]["unavailable_matches"][0]["match_id"] == 1
+
+
+def test_manual_mode_accepts_casual_rooms_and_sorts_by_time(tmp_path: Path) -> None:
+    late = make_match(11, league_id=0)
+    late["start_time"] = 1_900_000_000
+    early = make_match(22, league_id=777)
+    early["start_time"] = 1_850_000_000
+    client = FakeClient({"/matches/11": late, "/matches/22": early})
+    config = {**DEFAULT_CONFIG, "collect_mode": "manual", "league_id": 0}
+
+    payload = collect_manual_data(
+        match_ids=[22, 11],
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        names={"1000": "小明"},
+        config=config,
+    )
+
+    assert payload["collection_mode"] == "manual"
+    assert [match["match_id"] for match in payload["matches"]] == [22, 11]
+    assert payload["matches"][0]["players"][0]["display_name"] == "小明"
+    assert payload["site"]["title"] == config["site"]["title"]
+    assert payload["time_zone"] == "Asia/Shanghai"
+
+
+def test_manual_mode_reports_missing_match(tmp_path: Path) -> None:
+    client = FakeClient({"/matches/11": {"error": "not found"}})
+    config = {**DEFAULT_CONFIG, "collect_mode": "manual"}
+
+    payload = collect_manual_data(
+        match_ids=[11],
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        config=config,
+    )
+
+    assert payload["metadata"]["matches_available"] == 0
+    assert payload["metadata"]["unavailable_matches"][0]["match_id"] == 11
+
+
+def test_read_manual_match_ids_skips_comments(tmp_path: Path) -> None:
+    path = tmp_path / "matches.txt"
+    path.write_text("# comment\n8657068580\n\n9061487194 # trailing comment\n", encoding="utf-8")
+
+    assert read_manual_match_ids(path) == [8657068580, 9061487194]
+
+
+def test_read_manual_match_ids_rejects_junk(tmp_path: Path) -> None:
+    path = tmp_path / "matches.txt"
+    path.write_text("not-a-match-id\n", encoding="utf-8")
+
+    try:
+        read_manual_match_ids(path)
+    except LeagueCollectionError as error:
+        assert "Invalid match id" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+def test_load_config_merges_defaults(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps({"league_id": 42, "site": {"title": "群内战榜"}}),
+        encoding="utf-8",
+    )
+
+    config = load_config(path)
+
+    assert config["league_id"] == 42
+    assert config["collect_mode"] == "league"
+    assert config["time_zone"] == "Asia/Shanghai"
+    assert config["site"]["title"] == "群内战榜"
+    assert config["site"]["subtitle"] == DEFAULT_CONFIG["site"]["subtitle"]

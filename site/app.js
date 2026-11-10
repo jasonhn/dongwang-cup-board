@@ -1,4 +1,4 @@
-const JST_OFFSET = "+09:00";
+const DEFAULT_TIME_ZONE = "Asia/Shanghai";
 const DAY_SECONDS = 86_400;
 
 const elements = {
@@ -22,6 +22,13 @@ const elements = {
   matrixTable: document.querySelector("#matrixTable"),
   matrixEmpty: document.querySelector("#matrixEmpty"),
   matrixScroll: document.querySelector("#matrixScroll"),
+  heroKicker: document.querySelector("#heroKicker"),
+  heroTitle: document.querySelector("#heroTitle"),
+  heroSubtitle: document.querySelector("#heroSubtitle"),
+  footerLine: document.querySelector("#footerLine"),
+  sourceText: document.querySelector("#sourceText"),
+  fromTzLabel: document.querySelector("#fromTzLabel"),
+  toTzLabel: document.querySelector("#toTzLabel"),
   quickButtons: [...document.querySelectorAll(".quick-ranges button")],
 };
 
@@ -33,45 +40,104 @@ const state = {
   to: 0,
 };
 
-const jstFormatter = new Intl.DateTimeFormat("zh-CN", {
-  timeZone: "Asia/Tokyo",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
+let timeZone = DEFAULT_TIME_ZONE;
+let wallClockFormatter = null;
 
-const shortJstFormatter = new Intl.DateTimeFormat("zh-CN", {
-  timeZone: "Asia/Tokyo",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+function setTimeZone(next) {
+  timeZone = next || DEFAULT_TIME_ZONE;
+  wallClockFormatter = null;
+}
 
-function jstParts(seconds) {
-  const parts = jstFormatter.formatToParts(new Date(seconds * 1000));
+function partsOf(seconds) {
+  if (!wallClockFormatter) {
+    wallClockFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+  }
+  const parts = wallClockFormatter.formatToParts(new Date(seconds * 1000));
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 }
 
-function formatJst(seconds) {
-  const p = jstParts(seconds);
+// Offset between the wall clock in `timeZone` and UTC, in minutes.
+function offsetMinutesOf(seconds) {
+  const p = partsOf(seconds);
+  const wall = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour) % 24,
+    Number(p.minute),
+  );
+  return Math.round((wall - seconds * 1000) / 60_000);
+}
+
+function formatLocal(seconds) {
+  const p = partsOf(seconds);
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 
-function formatShortJst(seconds) {
-  return shortJstFormatter.format(new Date(seconds * 1000)).replaceAll("/", "-");
+function formatShortLocal(seconds) {
+  const p = partsOf(seconds);
+  return `${p.year}-${p.month}-${p.day}`;
 }
 
-function toDateInput(seconds) {
-  const p = jstParts(seconds);
+function toLocalInput(seconds) {
+  const p = partsOf(seconds);
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 
-function parseJstInput(value) {
-  if (!value) return Number.NaN;
-  return Date.parse(`${value}:00${JST_OFFSET}`) / 1000;
+function parseLocalInput(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
+    return Number.NaN;
+  }
+  const wallSeconds = Date.parse(`${value}:00Z`) / 1000;
+  if (!Number.isFinite(wallSeconds)) return Number.NaN;
+  // The wall clock is not an instant: real = wall - offset(real). Two passes keep
+  // the answer right even when the corrected instant crosses a DST boundary.
+  let seconds = wallSeconds;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    seconds = wallSeconds - offsetMinutesOf(seconds) * 60;
+  }
+  return seconds;
+}
+
+function timeZoneLabel(seconds = Date.now() / 1000) {
+  const offset = offsetMinutesOf(seconds);
+  const sign = offset < 0 ? "-" : "+";
+  const absolute = Math.abs(offset);
+  const hours = String(Math.floor(absolute / 60)).padStart(2, "0");
+  const minutes = absolute % 60;
+  return minutes ? `UTC${sign}${hours}:${String(minutes).padStart(2, "0")}` : `UTC${sign}${hours}`;
+}
+
+function applyBranding(data) {
+  const site = data.site || {};
+  const title = site.title || "内战光荣榜";
+  const subtitle = site.subtitle || "Dota 2 内战战绩";
+  document.title = `${title} · ${subtitle}`;
+
+  const description = document.querySelector('meta[name="description"]');
+  if (description && site.description) description.setAttribute("content", site.description);
+  if (elements.heroKicker) elements.heroKicker.textContent = site.kicker || "内战有喜 · 荣耀登榜";
+  if (elements.heroTitle) {
+    elements.heroTitle.textContent = title;
+    elements.heroTitle.dataset.text = title;
+    elements.heroTitle.setAttribute("aria-label", title);
+  }
+  if (elements.heroSubtitle) elements.heroSubtitle.textContent = subtitle;
+  if (elements.footerLine) {
+    elements.footerLine.textContent = site.footer || `${title} · 胜负皆尽兴，开黑常有喜`;
+  }
+
+  const label = `（${timeZoneLabel()}）`;
+  if (elements.fromTzLabel) elements.fromTzLabel.textContent = label;
+  if (elements.toTzLabel) elements.toTzLabel.textContent = label;
 }
 
 function formatPercent(value) {
@@ -114,9 +180,9 @@ function setQuickButtonActive(target) {
 function updateRangeControls() {
   elements.fromRange.value = String(state.from);
   elements.toRange.value = String(state.to);
-  elements.fromDate.value = toDateInput(state.from);
-  elements.toDate.value = toDateInput(state.to);
-  elements.selectedTime.textContent = `${formatJst(state.from)} — ${formatJst(state.to)}`;
+  elements.fromDate.value = toLocalInput(state.from);
+  elements.toDate.value = toLocalInput(state.to);
+  elements.selectedTime.textContent = `${formatLocal(state.from)} — ${formatLocal(state.to)}`;
 
   const span = Math.max(1, state.maximum - state.minimum);
   const left = ((state.from - state.minimum) / span) * 100;
@@ -147,7 +213,8 @@ function calculate(matches) {
   for (const match of matches) {
     const players = getVisiblePlayers(match).map((player) => ({
       accountId: Number(player.account_id),
-      name: player.personaname || `Account ${player.account_id}`,
+      name: player.display_name || player.personaname || `Account ${player.account_id}`,
+      display_name: player.display_name || null,
       radiant: Number(player.player_slot) < 128,
     }));
 
@@ -165,7 +232,9 @@ function calculate(matches) {
       current.losses += won ? 0 : 1;
       current.total += 1;
       if (match.start_time >= current.latestStart) {
-        current.name = player.name;
+        // Group nicknames are stable; Steam nicknames can change, so only follow
+        // them when the player has no configured display name.
+        if (!player.display_name) current.name = player.name;
         current.latestStart = match.start_time;
       }
       stats.set(player.accountId, current);
@@ -307,11 +376,11 @@ function bindControls() {
     setRange(state.from, next);
   });
   elements.fromDate.addEventListener("change", () => {
-    const next = parseJstInput(elements.fromDate.value);
+    const next = parseLocalInput(elements.fromDate.value);
     if (Number.isFinite(next)) setRange(next, state.to);
   });
   elements.toDate.addEventListener("change", () => {
-    const next = parseJstInput(elements.toDate.value);
+    const next = parseLocalInput(elements.toDate.value);
     if (Number.isFinite(next)) setRange(state.from, next);
   });
   elements.quickButtons.forEach((button) => {
@@ -334,6 +403,7 @@ async function load() {
     if (!Array.isArray(data.matches) || data.matches.length === 0) {
       throw new Error("数据中还没有可用比赛");
     }
+    setTimeZone(data.time_zone);
     state.data = data;
     state.minimum = Math.min(...data.matches.map((match) => Number(match.start_time)));
     state.maximum = Math.max(
@@ -348,14 +418,24 @@ async function load() {
       range.step = "60";
     }
     for (const input of [elements.fromDate, elements.toDate]) {
-      input.min = toDateInput(state.minimum);
-      input.max = toDateInput(state.maximum);
+      input.min = toLocalInput(state.minimum);
+      input.max = toLocalInput(state.maximum);
     }
 
-    elements.heroStatus.textContent = `${data.matches.length} 场战报已入册 · 联赛 ${data.league_id}`;
-    elements.updateStamp.textContent = `数据更新时间：${formatJst(Date.parse(data.generated_at_utc) / 1000)} JST`;
-    elements.minimumTime.textContent = formatShortJst(state.minimum);
-    elements.maximumTime.textContent = formatShortJst(state.maximum);
+    applyBranding(data);
+    const scope =
+      data.collection_mode === "manual" ? "手动收录" : `联赛 ${data.league_id}`;
+    elements.heroStatus.textContent = `${data.matches.length} 场战报已入册 · ${scope}`;
+    const generated = Date.parse(data.generated_at_utc) / 1000;
+    elements.updateStamp.textContent = `数据更新时间：${formatLocal(generated)} ${timeZoneLabel(generated)}`;
+    elements.minimumTime.textContent = formatShortLocal(state.minimum);
+    elements.maximumTime.textContent = formatShortLocal(state.maximum);
+    if (elements.sourceText) {
+      elements.sourceText.textContent =
+        data.collection_mode === "manual"
+          ? `每天自动刷新手动登记的 ${data.metadata?.match_ids_returned ?? data.matches.length} 场比赛。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。`
+          : `每天自动刷新联赛 ${data.league_id}。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。`;
+    }
     elements.availableCount.textContent = String(data.metadata?.matches_available ?? data.matches.length);
     showCoverageNotice(data);
     bindControls();

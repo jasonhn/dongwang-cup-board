@@ -13,8 +13,26 @@ import httpx
 from dotenv import load_dotenv
 
 API_BASE_URL = "https://api.opendota.com/api"
-DEFAULT_LEAGUE_ID = 19224
 DEFAULT_OUTPUT = Path("site/data/league.json")
+DEFAULT_CONFIG_PATH = Path("config.json")
+DEFAULT_TIME_ZONE = "Asia/Shanghai"
+
+DEFAULT_CONFIG: dict[str, Any] = {
+    "collect_mode": "league",
+    "league_id": 0,
+    "manual_match_file": "matches.txt",
+    "refresh_recent": 5,
+    "output": str(DEFAULT_OUTPUT),
+    "time_zone": DEFAULT_TIME_ZONE,
+    "names_file": "names.json",
+    "site": {
+        "title": "内战光荣榜",
+        "subtitle": "Dota 2 内战战绩",
+        "kicker": "内战有喜 · 荣耀登榜",
+        "footer": "内战光荣榜 · 胜负皆尽兴，开黑常有喜",
+        "description": "Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。",
+    },
+}
 
 
 class LeagueCollectionError(RuntimeError):
@@ -131,7 +149,12 @@ class OpenDotaLeagueClient:
         return self._request(path, paid=self._free_exhausted)
 
 
-def normalise_match(raw: dict[str, Any], league_id: int) -> dict[str, Any]:
+def normalise_match(
+    raw: dict[str, Any],
+    league_id: int | None = None,
+    *,
+    names: dict[str, str] | None = None,
+) -> dict[str, Any]:
     match_id = int(raw.get("match_id") or 0)
     actual_league_id = int(raw.get("leagueid") or 0)
     start_time = int(raw.get("start_time") or 0)
@@ -141,7 +164,7 @@ def normalise_match(raw: dict[str, Any], league_id: int) -> dict[str, Any]:
 
     if match_id <= 0 or start_time <= 0 or duration < 0:
         raise LeagueCollectionError(f"Match {match_id or '<unknown>'} has invalid core fields")
-    if actual_league_id != league_id:
+    if league_id is not None and actual_league_id != league_id:
         raise LeagueCollectionError(
             f"Match {match_id} belongs to league {actual_league_id}, expected {league_id}"
         )
@@ -161,12 +184,16 @@ def normalise_match(raw: dict[str, Any], league_id: int) -> dict[str, Any]:
         if not active_slot:
             continue
         account_id = player.get("account_id")
+        resolved_account_id = (
+            int(account_id) if isinstance(account_id, int) and account_id > 0 else None
+        )
         normalised_players.append(
             {
-                "account_id": (
-                    int(account_id) if isinstance(account_id, int) and account_id > 0 else None
-                ),
+                "account_id": resolved_account_id,
                 "personaname": str(player.get("personaname") or "").strip() or None,
+                "display_name": (
+                    (names or {}).get(str(resolved_account_id)) if resolved_account_id else None
+                ),
                 "player_slot": player_slot,
                 "hero_id": int(player.get("hero_id") or 0),
             }
@@ -174,7 +201,7 @@ def normalise_match(raw: dict[str, Any], league_id: int) -> dict[str, Any]:
 
     return {
         "match_id": match_id,
-        "league_id": league_id,
+        "league_id": actual_league_id,
         "start_time": start_time,
         "duration": duration,
         "radiant_win": radiant_win,
@@ -198,42 +225,156 @@ def _load_existing(path: Path, league_id: int) -> dict[int, dict[str, Any]]:
     return result
 
 
-def collect_league_data(
-    *,
-    league_id: int,
-    output_path: Path,
-    refresh_recent: int = 5,
-    client: OpenDotaLeagueClient,
-) -> dict[str, Any]:
-    league = client.get_json(f"/leagues/{league_id}")
-    match_ids_raw = client.get_json(f"/leagues/{league_id}/matchIds")
-    if not isinstance(league, dict):
-        raise LeagueCollectionError("OpenDota returned an invalid league response")
-    if not isinstance(match_ids_raw, list):
-        raise LeagueCollectionError("OpenDota returned an invalid match-ID list")
+def load_config(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise LeagueCollectionError(f"Config file not found: {path}")
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise LeagueCollectionError(f"Config file {path} is not valid JSON: {error}") from error
+    if not isinstance(raw, dict):
+        raise LeagueCollectionError(f"Config file {path} must be a JSON object")
 
-    match_ids = sorted({int(match_id) for match_id in match_ids_raw if int(match_id) > 0})
-    existing = _load_existing(output_path, league_id)
+    config = {**DEFAULT_CONFIG, **raw}
+    site = raw.get("site")
+    config["site"] = {**DEFAULT_CONFIG["site"], **(site if isinstance(site, dict) else {})}
+
+    mode = str(config.get("collect_mode") or "league").strip().lower()
+    if mode not in {"league", "manual"}:
+        raise LeagueCollectionError(
+            f"collect_mode must be 'league' or 'manual', got {raw.get('collect_mode')!r}"
+        )
+    config["collect_mode"] = mode
+
+    try:
+        config["league_id"] = int(config.get("league_id") or 0)
+        config["refresh_recent"] = max(0, int(config.get("refresh_recent") or 0))
+    except (TypeError, ValueError) as error:
+        raise LeagueCollectionError(f"config.json has a non-numeric field: {error}") from error
+    config["output"] = Path(config.get("output") or DEFAULT_OUTPUT)
+    config["time_zone"] = str(config.get("time_zone") or DEFAULT_TIME_ZONE)
+    return config
+
+
+def load_display_names(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise LeagueCollectionError(f"Names file {path} is not valid JSON: {error}") from error
+    if not isinstance(raw, dict):
+        raise LeagueCollectionError(
+            f"Names file {path} must be a JSON object of account id -> name"
+        )
+
+    names: dict[str, str] = {}
+    for key, value in raw.items():
+        name = str(value).strip()
+        if not name:
+            continue
+        try:
+            account_id = int(str(key).strip())
+        except ValueError:
+            raise LeagueCollectionError(
+                f"Names file {path} has a non-numeric account id: {key!r}"
+            ) from None
+        names[str(account_id)] = name[:40]
+    return names
+
+
+def read_manual_match_ids(path: Path) -> list[int]:
+    if not path.exists():
+        raise LeagueCollectionError(f"Manual match file not found: {path}")
+    match_ids: set[int] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        entry = line.split("#", 1)[0].strip().replace(",", "")
+        if not entry:
+            continue
+        try:
+            match_id = int(entry)
+        except ValueError:
+            raise LeagueCollectionError(f"Invalid match id {entry!r} in {path}") from None
+        if match_id > 0:
+            match_ids.add(match_id)
+    if not match_ids:
+        raise LeagueCollectionError(f"No match id found in {path}")
+    return sorted(match_ids)
+
+
+def _resolve_config(
+    config: dict[str, Any],
+    league_id: int | None,
+    output_path: Path | None,
+    refresh_recent: int | None,
+) -> dict[str, Any]:
+    resolved = dict(config)
+    if league_id is not None:
+        resolved["league_id"] = int(league_id)
+    if output_path is not None:
+        resolved["output"] = output_path
+    if refresh_recent is not None:
+        resolved["refresh_recent"] = max(0, int(refresh_recent))
+    return resolved
+
+
+def _apply_names(match: dict[str, Any], names: dict[str, str]) -> dict[str, Any]:
+    for player in match.get("players", []):
+        if not isinstance(player, dict):
+            continue
+        account_id = player.get("account_id")
+        player["display_name"] = names.get(str(account_id)) if account_id else None
+    return match
+
+
+def _collect_matches(
+    *,
+    match_ids: list[int],
+    output_path: Path,
+    refresh_recent: int,
+    client: OpenDotaLeagueClient,
+    names: dict[str, str],
+    expected_league_id: int | None,
+    cache_league_id: int,
+) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]]]:
+    existing = _load_existing(output_path, cache_league_id)
     refresh_ids = set(match_ids[-max(0, refresh_recent) :])
-    unavailable: list[dict[str, Any]] = []
     matches: dict[int, dict[str, Any]] = {}
+    unavailable: list[dict[str, Any]] = []
 
     for match_id in match_ids:
         if match_id in existing and match_id not in refresh_ids:
-            matches[match_id] = existing[match_id]
+            matches[match_id] = _apply_names(existing[match_id], names)
             continue
         try:
             raw = client.get_json(f"/matches/{match_id}")
             if not isinstance(raw, dict):
                 raise LeagueCollectionError("invalid match payload")
-            matches[match_id] = normalise_match(raw, league_id)
+            matches[match_id] = normalise_match(raw, expected_league_id, names=names)
         except LeagueCollectionError as error:
             if match_id in existing:
-                matches[match_id] = existing[match_id]
+                matches[match_id] = _apply_names(existing[match_id], names)
             else:
                 unavailable.append({"match_id": match_id, "reason": str(error)})
+    return matches, unavailable
 
-    ordered_matches = [matches[match_id] for match_id in match_ids if match_id in matches]
+
+def _order_matches(matches: dict[int, dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        matches.values(),
+        key=lambda match: (int(match.get("start_time") or 0), int(match.get("match_id") or 0)),
+    )
+
+
+def _build_payload(
+    *,
+    config: dict[str, Any],
+    league_info: dict[str, str],
+    ordered_matches: list[dict[str, Any]],
+    match_ids_returned: int,
+    unavailable: list[dict[str, Any]],
+    client: OpenDotaLeagueClient,
+) -> dict[str, Any]:
     anonymous_slots = sum(
         1
         for match in ordered_matches
@@ -247,18 +388,16 @@ def collect_league_data(
     ]
 
     return {
-        "schema_version": 1,
-        "league_id": league_id,
-        "league": {
-            "name": str(league.get("name") or f"League {league_id}"),
-            "tier": str(league.get("tier") or ""),
-            "banner": str(league.get("banner") or ""),
-        },
+        "schema_version": 2,
+        "league_id": int(config["league_id"]),
+        "collection_mode": config["collect_mode"],
+        "league": league_info,
+        "site": config["site"],
         "generated_at_utc": datetime.now(UTC).isoformat(),
-        "time_zone": "Asia/Tokyo",
+        "time_zone": config["time_zone"],
         "source": "OpenDota public API",
         "metadata": {
-            "match_ids_returned": len(match_ids),
+            "match_ids_returned": match_ids_returned,
             "matches_available": len(ordered_matches),
             "unavailable_matches": unavailable,
             "anonymous_player_slots": anonymous_slots,
@@ -268,6 +407,82 @@ def collect_league_data(
         },
         "matches": ordered_matches,
     }
+
+
+def collect_league_data(
+    *,
+    league_id: int,
+    output_path: Path,
+    refresh_recent: int = 5,
+    client: OpenDotaLeagueClient,
+    names: dict[str, str] | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    league = client.get_json(f"/leagues/{league_id}")
+    match_ids_raw = client.get_json(f"/leagues/{league_id}/matchIds")
+    if not isinstance(league, dict):
+        raise LeagueCollectionError("OpenDota returned an invalid league response")
+    if not isinstance(match_ids_raw, list):
+        raise LeagueCollectionError("OpenDota returned an invalid match-ID list")
+
+    match_ids = sorted({int(match_id) for match_id in match_ids_raw if int(match_id) > 0})
+    matches, unavailable = _collect_matches(
+        match_ids=match_ids,
+        output_path=output_path,
+        refresh_recent=refresh_recent,
+        client=client,
+        names=names or {},
+        expected_league_id=league_id,
+        cache_league_id=league_id,
+    )
+    resolved = _resolve_config(config or DEFAULT_CONFIG, league_id, output_path, refresh_recent)
+
+    return _build_payload(
+        config=resolved,
+        league_info={
+            "name": str(league.get("name") or f"League {league_id}"),
+            "tier": str(league.get("tier") or ""),
+            "banner": str(league.get("banner") or ""),
+        },
+        ordered_matches=_order_matches(matches),
+        match_ids_returned=len(match_ids),
+        unavailable=unavailable,
+        client=client,
+    )
+
+
+def collect_manual_data(
+    *,
+    match_ids: list[int],
+    output_path: Path,
+    refresh_recent: int = 5,
+    client: OpenDotaLeagueClient,
+    names: dict[str, str] | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    resolved = _resolve_config(config or DEFAULT_CONFIG, None, output_path, refresh_recent)
+    matches, unavailable = _collect_matches(
+        match_ids=match_ids,
+        output_path=output_path,
+        refresh_recent=refresh_recent,
+        client=client,
+        names=names or {},
+        expected_league_id=None,
+        cache_league_id=int(resolved["league_id"]),
+    )
+
+    return _build_payload(
+        config=resolved,
+        league_info={
+            "name": str(resolved["site"].get("title") or "内战手动收录"),
+            "tier": "manual",
+            "banner": "",
+        },
+        ordered_matches=_order_matches(matches),
+        match_ids_returned=len(match_ids),
+        unavailable=unavailable,
+        client=client,
+    )
 
 
 def write_snapshot(path: Path, payload: dict[str, Any]) -> None:
@@ -282,11 +497,20 @@ def write_snapshot(path: Path, payload: dict[str, Any]) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Collect a league snapshot for the GitHub Pages dashboard"
+        description="Collect an OpenDota snapshot for the dashboard"
     )
-    parser.add_argument("--league-id", type=int, default=DEFAULT_LEAGUE_ID)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--refresh-recent", type=int, default=5)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
+    parser.add_argument("--league-id", type=int, default=None, help="Override config.json")
+    parser.add_argument(
+        "--mode",
+        choices=("league", "manual"),
+        default=None,
+        help="Override config.json collect_mode",
+    )
+    parser.add_argument("--output", type=Path, default=None, help="Override config.json output")
+    parser.add_argument(
+        "--refresh-recent", type=int, default=None, help="Override config.json refresh_recent"
+    )
     parser.add_argument(
         "--max-paid-calls",
         type=int,
@@ -298,24 +522,58 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = build_parser().parse_args(argv)
+    config = load_config(args.config)
+    config = _resolve_config(config, args.league_id, args.output, args.refresh_recent)
+    if args.mode is not None:
+        config["collect_mode"] = args.mode
+    names = load_display_names(Path(config["names_file"]))
+
     with OpenDotaLeagueClient(
         api_key=os.getenv("OPENDOTA_API_KEY"),
         max_paid_calls=args.max_paid_calls,
     ) as client:
-        payload = collect_league_data(
-            league_id=args.league_id,
-            output_path=args.output,
-            refresh_recent=max(0, args.refresh_recent),
-            client=client,
-        )
-    write_snapshot(args.output, payload)
+        if config["collect_mode"] == "manual":
+            payload = collect_manual_data(
+                match_ids=read_manual_match_ids(Path(config["manual_match_file"])),
+                output_path=config["output"],
+                refresh_recent=config["refresh_recent"],
+                client=client,
+                names=names,
+                config=config,
+            )
+        else:
+            if not config["league_id"]:
+                raise LeagueCollectionError(
+                    "league_id is required in league mode (set it in config.json)"
+                )
+            payload = collect_league_data(
+                league_id=config["league_id"],
+                output_path=config["output"],
+                refresh_recent=config["refresh_recent"],
+                client=client,
+                names=names,
+                config=config,
+            )
+
+    write_snapshot(config["output"], payload)
     metadata = payload["metadata"]
+    label = (
+        f"league {config['league_id']}"
+        if config["collect_mode"] == "league"
+        else f"manual list ({metadata['match_ids_returned']} ids)"
+    )
     print(
-        f"League {args.league_id}: wrote {metadata['matches_available']} matches "
-        f"to {args.output} ({len(metadata['unavailable_matches'])} unavailable)"
+        f"{label}: wrote {metadata['matches_available']} matches to {config['output']} "
+        f"({len(metadata['unavailable_matches'])} unavailable, "
+        f"{metadata['anonymous_player_slots']} anonymous slots, "
+        f"{metadata['paid_calls']} paid calls)"
     )
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except LeagueCollectionError as error:
+        print(f"Collection failed: {error}")
+        raise SystemExit(1)
