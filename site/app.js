@@ -428,10 +428,16 @@ async function load() {
       showEmptySnapshot(data);
       return;
     }
-    state.minimum = Math.min(...data.matches.map((match) => Number(match.start_time)));
-    state.maximum = Math.max(
+    const lastMatchEnd = Math.max(
       ...data.matches.map((match) => Number(match.start_time) + Number(match.duration || 0)),
     );
+    // Follow the real clock, not just the newest match, so freshly added matches
+    // land inside the range without anyone dragging the slider.
+    state.minimum = Math.min(
+      Math.min(...data.matches.map((match) => Number(match.start_time))),
+      Math.floor(Date.now() / 1000),
+    );
+    state.maximum = Math.max(lastMatchEnd, Math.floor(Date.now() / 1000));
     state.from = state.minimum;
     state.to = state.maximum;
 
