@@ -7,6 +7,7 @@ from collector import (
     LeagueCollectionError,
     collect_league_data,
     collect_manual_data,
+    find_league_id,
     load_config,
     load_display_names,
     normalise_match,
@@ -186,3 +187,30 @@ def test_load_config_merges_defaults(tmp_path: Path) -> None:
     assert config["time_zone"] == "Asia/Shanghai"
     assert config["site"]["title"] == "群内战榜"
     assert config["site"]["subtitle"] == DEFAULT_CONFIG["site"]["subtitle"]
+
+
+def test_find_league_id_matches_exact_name(tmp_path: Path) -> None:
+    client = FakeClient(
+        {
+            "/leagues": [
+                {"leagueid": 19905, "name": "懂王杯"},
+                {"leagueid": 20261, "name": "中军杯"},
+                {"leagueid": 0, "name": "broken"},
+            ]
+        }
+    )
+
+    assert find_league_id(client, "懂王杯") == 19905  # type: ignore[arg-type]
+
+
+def test_find_league_id_lists_candidates(tmp_path: Path) -> None:
+    client = FakeClient(
+        {"/leagues": [{"leagueid": 19905, "name": "懂王杯"}, {"leagueid": 2, "name": "懂王杯 S2"}]}
+    )
+
+    try:
+        find_league_id(client, "懂王")  # type: ignore[arg-type]
+    except LeagueCollectionError as error:
+        assert "懂王杯 (19905)" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")

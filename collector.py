@@ -302,6 +302,40 @@ def read_manual_match_ids(path: Path) -> list[int]:
     return sorted(match_ids)
 
 
+def find_league_id(client: OpenDotaLeagueClient, name: str) -> int:
+    """Resolve a league name to a league id using OpenDota's league listing."""
+    wanted = name.strip()
+    if not wanted:
+        raise LeagueCollectionError("League name is empty")
+    rows = client.get_json("/leagues")
+    if not isinstance(rows, list):
+        raise LeagueCollectionError("OpenDota returned an invalid league listing")
+
+    by_name: dict[str, int] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        league_name = str(row.get("name") or "").strip()
+        league_id = int(row.get("leagueid") or 0)
+        if league_id > 0 and league_name:
+            by_name.setdefault(league_name, league_id)
+
+    if wanted in by_name:
+        return by_name[wanted]
+
+    candidates = [
+        (league_name, league_id)
+        for league_name, league_id in by_name.items()
+        if wanted.lower() in league_name.lower()
+    ]
+    if not candidates:
+        raise LeagueCollectionError(f"No league found for name {name!r}")
+    preview = ", ".join(f"{league_name} ({league_id})" for league_name, league_id in candidates[:8])
+    raise LeagueCollectionError(
+        f"Name {name!r} is not an exact league name. Candidates: {preview}"
+    )
+
+
 def _resolve_config(
     config: dict[str, Any],
     league_id: int | None,
@@ -502,6 +536,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument("--league-id", type=int, default=None, help="Override config.json")
     parser.add_argument(
+        "--league-name",
+        default=None,
+        help="Resolve a league name to its id (exact match) and use league mode",
+    )
+    parser.add_argument(
         "--mode",
         choices=("league", "manual"),
         default=None,
@@ -532,6 +571,10 @@ def main(argv: list[str] | None = None) -> int:
         api_key=os.getenv("OPENDOTA_API_KEY"),
         max_paid_calls=args.max_paid_calls,
     ) as client:
+        if args.league_name:
+            config["collect_mode"] = "league"
+            config["league_id"] = find_league_id(client, args.league_name)
+            print(f"Resolved {args.league_name!r} to league id {config['league_id']}")
         if config["collect_mode"] == "manual":
             payload = collect_manual_data(
                 match_ids=read_manual_match_ids(Path(config["manual_match_file"])),

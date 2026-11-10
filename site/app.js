@@ -57,6 +57,7 @@ function partsOf(seconds) {
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
+      second: "2-digit",
       hourCycle: "h23",
     });
   }
@@ -64,7 +65,8 @@ function partsOf(seconds) {
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 }
 
-// Offset between the wall clock in `timeZone` and UTC, in minutes.
+// Offset between the wall clock in `timeZone` and UTC, in minutes (fractional for
+// zones such as Asia/Kolkata). Seconds are included so the value is exact.
 function offsetMinutesOf(seconds) {
   const p = partsOf(seconds);
   const wall = Date.UTC(
@@ -73,6 +75,7 @@ function offsetMinutesOf(seconds) {
     Number(p.day),
     Number(p.hour) % 24,
     Number(p.minute),
+    Number(p.second),
   );
   return Math.round((wall - seconds * 1000) / 60_000);
 }
@@ -108,7 +111,7 @@ function parseLocalInput(value) {
 }
 
 function timeZoneLabel(seconds = Date.now() / 1000) {
-  const offset = offsetMinutesOf(seconds);
+  const offset = Math.round(offsetMinutesOf(seconds));
   const sign = offset < 0 ? "-" : "+";
   const absolute = Math.abs(offset);
   const hours = String(Math.floor(absolute / 60)).padStart(2, "0");
@@ -395,16 +398,36 @@ function bindControls() {
   });
 }
 
+function showEmptySnapshot(data) {
+  const scope =
+    data.collection_mode === "manual"
+      ? "手动登记的清单"
+      : `联赛 ${data.league_id}${data.league?.name ? `（${data.league.name}）` : ""}`;
+  elements.heroStatus.textContent = "还没有战报入册";
+  const parsed = Date.parse(data.generated_at_utc || "");
+  const generated = Number.isFinite(parsed) ? parsed / 1000 : Date.now() / 1000;
+  elements.updateStamp.textContent = `数据更新时间：${formatLocal(generated)} ${timeZoneLabel(generated)}`;
+  elements.coverageNotice.textContent =
+    `${scope} 目前还没有可用比赛。用联赛模式开一个房间打一场，几分钟后 OpenDota 就会收录这场比赛；` +
+    "已经打过的普通房间可以把 match_id 写进 matches.txt，并把 config.json 的 collect_mode 改成 manual。";
+  elements.coverageNotice.hidden = false;
+  elements.statsEmpty.hidden = false;
+  elements.matrixEmpty.hidden = false;
+  elements.matrixScroll.hidden = true;
+}
+
 async function load() {
   try {
     const response = await fetch("./data/league.json", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    if (!Array.isArray(data.matches) || data.matches.length === 0) {
-      throw new Error("数据中还没有可用比赛");
-    }
     setTimeZone(data.time_zone);
     state.data = data;
+    applyBranding(data);
+    if (!Array.isArray(data.matches) || data.matches.length === 0) {
+      showEmptySnapshot(data);
+      return;
+    }
     state.minimum = Math.min(...data.matches.map((match) => Number(match.start_time)));
     state.maximum = Math.max(
       ...data.matches.map((match) => Number(match.start_time) + Number(match.duration || 0)),
@@ -422,7 +445,6 @@ async function load() {
       input.max = toLocalInput(state.maximum);
     }
 
-    applyBranding(data);
     const scope =
       data.collection_mode === "manual" ? "手动收录" : `联赛 ${data.league_id}`;
     elements.heroStatus.textContent = `${data.matches.length} 场战报已入册 · ${scope}`;

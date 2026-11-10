@@ -69,15 +69,24 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 ```bash
 .venv/bin/python collector.py --mode manual --league-id 0
 .venv/bin/python collector.py --league-id 42 --refresh-recent 10 --output /tmp/preview.json
+.venv/bin/python collector.py --league-name "懂王杯"   # 按联赛名反查 league_id 并采集
 ```
+
+只想知道 ID、不写数据的话，看输出里的 `Resolved '懂王杯' to league id 19905`，再把它填进 `config.json`；名字不完全一致时会列出候选，换成完全一致的名字即可。
 
 ### 4. Push，开 GitHub Pages
 
-仓库 Settings → Pages → Build and deployment 选 **Deploy from a branch** 不需要动，本仓库用的是 GitHub Actions（`.github/workflows/pages.yml`）：
+本仓库用 GitHub Actions 部署（`.github/workflows/pages.yml`），所以 Pages 的来源必须切成 **GitHub Actions**：
+
+仓库 **Settings → Pages → Build and deployment → Source = GitHub Actions**。新建仓库默认是 “Deploy from a branch”，不改这里的话 Actions 会在 deploy 步骤报错 “Pages not enabled”。
+
+然后：
 
 - push 到 `main` 即触发一次刷新 + 部署；
 - 每天 UTC 01:00（北京时间 09:00）自动刷新。GitHub cron 用 UTC，改时间记得换算；
 - 也可以随时在 Actions 页面手动点 “Run workflow”。
+
+部署完成后，那次运行的 deploy 步骤会打印地址，格式是 `https://<用户名>.github.io/<仓库名>/`。
 
 可选：在仓库 Settings → Secrets and variables → Actions 里新建 `OPENDOTA_API_KEY`。脚本默认走匿名免费接口（约 60 次/分钟、3000 次/天），额度用尽才会改用带 Key 的请求，并且有 `OPENDOTA_MAX_PAID_CALLS` 上限保护。Key 只存在 Secret 或本地 `.env`，不会进仓库。
 
@@ -86,6 +95,8 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 ### `league` 模式（最省心）
 
 用联赛模式开的房间，比赛会自带 `leagueid`，OpenDota 按联赛自动归集，你什么都不用记。要拿到自己的 `league_id`，去 Valve 的联赛申请入口 <https://www.dota2.com/league/0/list> 申请 Amateur League，审批与费用以页面为准。小群不一定要折腾，先用现成联赛把看板跑顺也行。
+
+联赛刚建好、还没打比赛时 `matchIds` 是空的，看板会显示“还没有战报入册”并给出下一步提示，不会报错。
 
 ### `manual` 模式（零门槛，最适合没有联赛的群）
 

@@ -1,16 +1,16 @@
 {
   "collect_mode": "league",
-  "league_id": 19224,
+  "league_id": 19905,
   "manual_match_file": "matches.txt",
   "refresh_recent": 5,
   "output": "site/data/league.json",
   "time_zone": "Asia/Shanghai",
   "names_file": "names.json",
   "site": {
-    "title": "内战光荣榜",
+    "title": "懂王杯光荣榜",
     "subtitle": "Dota 2 内战战绩",
     "kicker": "内战有喜 · 荣耀登榜",
-    "footer": "内战光荣榜 · 胜负皆尽兴，开黑常有喜",
-    "description": "Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
+    "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
+    "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   }
 }
