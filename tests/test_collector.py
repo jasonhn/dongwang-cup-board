@@ -5,6 +5,7 @@ from typing import Any
 from collector import (
     DEFAULT_CONFIG,
     LeagueCollectionError,
+    _stable_snapshot_timestamp,
     collect_league_data,
     collect_manual_data,
     find_league_id,
@@ -214,3 +215,21 @@ def test_find_league_id_lists_candidates(tmp_path: Path) -> None:
         assert "懂王杯 (19905)" in str(error)
     else:
         raise AssertionError("expected LeagueCollectionError")
+
+
+def test_stable_timestamp_when_content_unchanged(tmp_path: Path) -> None:
+    path = tmp_path / "league.json"
+    payload = {
+        "generated_at_utc": "2026-01-01T00:00:00+00:00",
+        "league_id": 19224,
+        "matches": [normalise_match(make_match(1), 19224)],
+    }
+    write_snapshot(path, payload)
+
+    same_content = {**payload, "generated_at_utc": "2026-01-02T00:00:00+00:00"}
+    kept = _stable_snapshot_timestamp(path, same_content)
+    assert kept["generated_at_utc"] == "2026-01-01T00:00:00+00:00"
+
+    changed = {**payload, "generated_at_utc": "2026-01-02T00:00:00+00:00", "matches": []}
+    bumped = _stable_snapshot_timestamp(path, changed)
+    assert bumped["generated_at_utc"] == "2026-01-02T00:00:00+00:00"

@@ -529,6 +529,30 @@ def write_snapshot(path: Path, payload: dict[str, Any]) -> None:
     temporary.replace(path)
 
 
+def _stable_snapshot_timestamp(path: Path, payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep the old timestamp when nothing but the timestamp would change.
+
+    Otherwise the daily scheduled run commits a diff every single day, which
+    clutters history and collides with local refreshes.
+    """
+    if not path.exists():
+        return payload
+    try:
+        existing = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return payload
+    if not isinstance(existing, dict):
+        return payload
+
+    def content(snapshot: dict[str, Any]) -> dict[str, Any]:
+        return {key: value for key, value in snapshot.items() if key != "generated_at_utc"}
+
+    previous_stamp = existing.get("generated_at_utc")
+    if isinstance(previous_stamp, str) and content(existing) == content(payload):
+        return {**payload, "generated_at_utc": previous_stamp}
+    return payload
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Collect an OpenDota snapshot for the dashboard"
@@ -598,6 +622,8 @@ def main(argv: list[str] | None = None) -> int:
                 config=config,
             )
 
+    # Compare against the file on disk before overwriting it.
+    payload = _stable_snapshot_timestamp(config["output"], payload)
     write_snapshot(config["output"], payload)
     metadata = payload["metadata"]
     label = (
