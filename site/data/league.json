@@ -1,10 +1,10 @@
 {
   "schema_version": 2,
   "league_id": 19905,
-  "collection_mode": "league",
+  "collection_mode": "manual",
   "league": {
-    "name": "懂王杯",
-    "tier": "excluded",
+    "name": "懂王杯光荣榜",
+    "tier": "manual",
     "banner": ""
   },
   "site": {
@@ -14,17 +14,97 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-10T12:28:42.631422+00:00",
+  "generated_at_utc": "2026-11-10T13:36:27.871998+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 0,
-    "matches_available": 0,
+    "match_ids_returned": 1,
+    "matches_available": 1,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
     "paid_calls": 0,
     "anonymous_daily_quota_exhausted": false
   },
-  "matches": []
+  "matches": [
+    {
+      "match_id": 9084142516,
+      "league_id": 0,
+      "start_time": 1794306976,
+      "duration": 2999,
+      "radiant_win": true,
+      "players": [
+        {
+          "account_id": 134729801,
+          "personaname": "我妻",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 84
+        },
+        {
+          "account_id": 357912236,
+          "personaname": "海盗书生",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 105
+        },
+        {
+          "account_id": 129964895,
+          "personaname": "Monkey see Monkey do",
+          "display_name": "Monkey see Monkey do",
+          "player_slot": 2,
+          "hero_id": 137
+        },
+        {
+          "account_id": 1416045197,
+          "personaname": "王祖贤",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 94
+        },
+        {
+          "account_id": 144841190,
+          "personaname": "光法大后期",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 6
+        },
+        {
+          "account_id": 149034655,
+          "personaname": "6321",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 52
+        },
+        {
+          "account_id": 201691623,
+          "personaname": "不要消极，要积极出击",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 110
+        },
+        {
+          "account_id": 1251675014,
+          "personaname": "演员9527",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 22
+        },
+        {
+          "account_id": 400077904,
+          "personaname": "大磨盘",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 76
+        },
+        {
+          "account_id": 1051733455,
+          "personaname": "夏",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 66
+        }
+      ]
+    }
+  ]
 }
