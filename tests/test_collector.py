@@ -16,6 +16,7 @@ from collector import (
     read_manual_match_ids,
     write_snapshot,
 )
+from collector import account_ids_in_snapshot, load_avatar_cache, refresh_avatars
 
 
 def make_match(match_id: int, *, league_id: int = 19224) -> dict[str, Any]:
@@ -310,5 +311,94 @@ def test_both_mode_requires_a_league_id(tmp_path: Path) -> None:
         )
     except LeagueCollectionError as error:
         assert "league_id is required" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+class AvatarClient:
+    """Serves /players/<id> for the ids it knows and fails for the rest."""
+
+    paid_calls = 0
+    free_exhausted = False
+
+    def __init__(self, profiles: dict[int, str | None]) -> None:
+        self.profiles = profiles
+        self.requested: list[str] = []
+
+    def get_json(self, path: str) -> Any:
+        self.requested.append(path)
+        account_id = int(path.removeprefix("/players/"))
+        if account_id not in self.profiles:
+            raise LeagueCollectionError(f"OpenDota returned 404 for {path}")
+        avatar = self.profiles[account_id]
+        return {"profile": {"avatarfull": avatar} if avatar is not None else {}}
+
+
+def avatar_config(tmp_path: Path, **overrides: Any) -> dict[str, Any]:
+    return {
+        **DEFAULT_CONFIG,
+        "avatars_file": str(tmp_path / "avatars.json"),
+        **overrides,
+    }
+
+
+def test_refresh_avatars_caches_urls_and_known_gaps(tmp_path: Path) -> None:
+    payload = {"matches": [normalise_match(make_match(1), 19224)]}
+    client = AvatarClient({1000: "https://cdn.example/1000.jpg", 1001: None})
+
+    path, total, fetched = refresh_avatars(
+        config=avatar_config(tmp_path), client=client, payload=payload  # type: ignore[arg-type]
+    )
+
+    cached = json.loads(path.read_text(encoding="utf-8"))
+    assert cached["1000"] == "https://cdn.example/1000.jpg"
+    assert cached["1001"] == ""
+    assert total == 10
+    assert fetched == 10
+    # Players without a profile are recorded once so later runs skip them.
+    assert client.requested == [f"/players/{account_id}" for account_id in range(1000, 1010)]
+
+    second_client = AvatarClient({1000: "https://cdn.example/1000.jpg"})
+    _, total_after, fetched_after = refresh_avatars(
+        config=avatar_config(tmp_path), client=second_client, payload=payload  # type: ignore[arg-type]
+    )
+    assert second_client.requested == []
+    assert fetched_after == 0
+    assert total_after == 10
+    assert load_avatar_cache(path) == cached
+
+
+def test_refresh_avatars_caps_new_lookups(tmp_path: Path) -> None:
+    payload = {"matches": [normalise_match(make_match(1), 19224)]}
+    client = AvatarClient({1000: "https://cdn.example/1000.jpg"})
+
+    path, total, fetched = refresh_avatars(
+        config=avatar_config(tmp_path, max_new_avatars=3),
+        client=client,  # type: ignore[arg-type]
+        payload=payload,
+    )
+
+    assert fetched == 3
+    assert total == 3
+    assert client.requested == ["/players/1000", "/players/1001", "/players/1002"]
+    assert sorted(json.loads(path.read_text(encoding="utf-8"))) == ["1000", "1001", "1002"]
+
+
+def test_account_ids_in_snapshot_skips_anonymous_slots() -> None:
+    match = normalise_match(make_match(1), 19224)
+    match["players"][0]["account_id"] = None
+    match["players"].append({"account_id": None, "player_slot": 128})
+
+    assert account_ids_in_snapshot({"matches": [match]}) == list(range(1001, 1010))
+
+
+def test_load_config_rejects_non_numeric_avatar_budget(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"max_new_avatars": "lots"}), encoding="utf-8")
+
+    try:
+        load_config(path)
+    except LeagueCollectionError as error:
+        assert "max_new_avatars" in str(error)
     else:
         raise AssertionError("expected LeagueCollectionError")

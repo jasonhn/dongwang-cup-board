@@ -684,6 +684,34 @@ tr:nth-child(3) .rank-badge {
 
 .player-name {
   font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-label {
+  min-width: 0;
+}
+
+.player-avatar {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(151, 0, 24, 0.35);
+  background: #f2dfb4;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.player-avatar.avatar-missing {
+  display: grid;
+  place-items: center;
+  color: var(--red-900);
+  font-size: 0.95rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #fff4aa, #e9a52c);
+  box-shadow: none;
 }
 
 .account-id {

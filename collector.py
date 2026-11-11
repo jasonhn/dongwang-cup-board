@@ -16,6 +16,7 @@ API_BASE_URL = "https://api.opendota.com/api"
 DEFAULT_OUTPUT = Path("site/data/league.json")
 DEFAULT_CONFIG_PATH = Path("config.json")
 DEFAULT_TIME_ZONE = "Asia/Shanghai"
+DEFAULT_AVATARS_FILE = "site/data/avatars.json"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "collect_mode": "league",
@@ -25,6 +26,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "output": str(DEFAULT_OUTPUT),
     "time_zone": DEFAULT_TIME_ZONE,
     "names_file": "names.json",
+    "avatars_file": DEFAULT_AVATARS_FILE,
+    "max_new_avatars": 80,
     "site": {
         "title": "内战光荣榜",
         "subtitle": "Dota 2 内战战绩",
@@ -253,6 +256,13 @@ def load_config(path: Path) -> dict[str, Any]:
         raise LeagueCollectionError(f"config.json has a non-numeric field: {error}") from error
     config["output"] = Path(config.get("output") or DEFAULT_OUTPUT)
     config["time_zone"] = str(config.get("time_zone") or DEFAULT_TIME_ZONE)
+    config["avatars_file"] = str(config.get("avatars_file") or DEFAULT_AVATARS_FILE)
+    try:
+        config["max_new_avatars"] = max(0, int(config.get("max_new_avatars") or 0))
+    except (TypeError, ValueError) as error:
+        raise LeagueCollectionError(
+            f"config.json has a non-numeric max_new_avatars field: {error}"
+        ) from error
     return config
 
 
@@ -281,6 +291,105 @@ def load_display_names(path: Path) -> dict[str, str]:
             ) from None
         names[str(account_id)] = name[:40]
     return names
+
+
+def load_avatar_cache(path: Path) -> dict[str, str]:
+    """Load previously fetched avatar URLs; "" means "no avatar, do not retry"."""
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(key): str(value) for key, value in raw.items() if isinstance(value, str)}
+
+
+def collect_avatars(
+    *,
+    client: OpenDotaLeagueClient,
+    account_ids: list[int],
+    cache: dict[str, str],
+    max_new: int = 80,
+) -> tuple[dict[str, str], int]:
+    """Fetch Steam avatar URLs through OpenDota, reusing the cached results.
+
+    Players without an OpenDota profile are recorded as "" so we do not spend
+    quota retrying them on every run.
+    """
+    avatars = dict(cache)
+    fetched = 0
+    for account_id in sorted({int(value) for value in account_ids if int(value) > 0}):
+        key = str(account_id)
+        if key in avatars:
+            continue
+        if fetched >= max_new:
+            break
+        fetched += 1
+        try:
+            payload = client.get_json(f"/players/{account_id}")
+        except LeagueCollectionError:
+            avatars[key] = ""
+            continue
+        profile = payload.get("profile") if isinstance(payload, dict) else None
+        if not isinstance(profile, dict):
+            avatars[key] = ""
+            continue
+        url = profile.get("avatarfull") or profile.get("avatar")
+        avatars[key] = url if isinstance(url, str) and url.startswith("http") else ""
+    return avatars, fetched
+
+
+def write_avatars(path: Path, avatars: dict[str, str]) -> bool:
+    payload = json.dumps(
+        {key: avatars[key] for key in sorted(avatars)}, ensure_ascii=False, indent=2
+    ) + "\n"
+    if path.exists() and path.read_text(encoding="utf-8") == payload:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_text(payload, encoding="utf-8")
+    temporary.replace(path)
+    return True
+
+
+def account_ids_in_snapshot(payload: dict[str, Any]) -> list[int]:
+    """Every positive account id that appears in the snapshot roster."""
+    account_ids: set[int] = set()
+    for match in payload.get("matches", []):
+        if not isinstance(match, dict):
+            continue
+        for player in match.get("players", []):
+            if not isinstance(player, dict):
+                continue
+            account_id = player.get("account_id")
+            if isinstance(account_id, int) and account_id > 0:
+                account_ids.add(account_id)
+    return sorted(account_ids)
+
+
+def refresh_avatars(
+    *,
+    config: dict[str, Any],
+    client: OpenDotaLeagueClient,
+    payload: dict[str, Any],
+) -> tuple[Path, int, int]:
+    """Cache Steam avatars for every player in the snapshot.
+
+    Returns (path, total cached, newly fetched). The file is written beside the
+    snapshot so GitHub Pages serves it straight from the repository.
+    """
+    path = Path(config.get("avatars_file") or DEFAULT_AVATARS_FILE)
+    cache = load_avatar_cache(path)
+    avatars, fetched = collect_avatars(
+        client=client,
+        account_ids=account_ids_in_snapshot(payload),
+        cache=cache,
+        max_new=int(config.get("max_new_avatars") or 0),
+    )
+    write_avatars(path, avatars)
+    return path, len(avatars), fetched
 
 
 def read_manual_match_ids(path: Path, *, require_non_empty: bool = True) -> list[int]:
@@ -655,6 +764,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--refresh-recent", type=int, default=None, help="Override config.json refresh_recent"
     )
     parser.add_argument(
+        "--skip-avatars",
+        action="store_true",
+        help="Do not fetch Steam avatars for the players in this snapshot",
+    )
+    parser.add_argument(
         "--max-paid-calls",
         type=int,
         default=int(os.getenv("OPENDOTA_MAX_PAID_CALLS", "250")),
@@ -685,6 +799,13 @@ def main(argv: list[str] | None = None) -> int:
             output_path=config["output"],
             names=names,
         )
+        if args.skip_avatars:
+            avatar_line = "avatars skipped"
+        else:
+            avatar_path, avatar_total, avatar_new = refresh_avatars(
+                config=config, client=client, payload=payload
+            )
+            avatar_line = f"{avatar_total} avatars cached ({avatar_new} new) in {avatar_path}"
 
     # Compare against the file on disk before overwriting it.
     payload = _stable_snapshot_timestamp(config["output"], payload)
@@ -703,6 +824,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{metadata['anonymous_player_slots']} anonymous slots, "
         f"{metadata['paid_calls']} paid calls)"
     )
+    print(avatar_line)
     return 0
 
 

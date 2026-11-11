@@ -34,6 +34,7 @@ const elements = {
 
 const state = {
   data: null,
+  avatars: {},
   minimum: 0,
   maximum: 0,
   from: 0,
@@ -176,6 +177,53 @@ function makePlayerLabel(player) {
   return wrapper;
 }
 
+// Avatars are collected by collector.py into site/data/avatars.json.
+// Only http(s) URLs are trusted; anything else falls back to a letter badge.
+function isAvatarUrl(value) {
+  return typeof value === "string" && /^https?:\/\//i.test(value);
+}
+
+async function loadAvatars() {
+  try {
+    const response = await fetch("./data/avatars.json", { cache: "no-store" });
+    if (!response.ok) return {};
+    const raw = await response.json();
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    return Object.fromEntries(
+      Object.entries(raw).filter(([, url]) => isAvatarUrl(url)),
+    );
+  } catch {
+    // Avatars are decorative: a missing file must never break the board.
+    return {};
+  }
+}
+
+function makeAvatarFallback(player) {
+  const mark = document.createElement("span");
+  mark.className = "player-avatar avatar-missing";
+  mark.setAttribute("aria-hidden", "true");
+  const first = Array.from(String(player.name || ""))[0];
+  mark.textContent = first ? first.toUpperCase() : "?";
+  return mark;
+}
+
+function makeAvatar(player) {
+  const url = state.avatars[String(player.accountId)];
+  if (!url) return makeAvatarFallback(player);
+  const image = document.createElement("img");
+  image.className = "player-avatar";
+  image.src = url;
+  image.alt = "";
+  image.loading = "lazy";
+  image.decoding = "async";
+  image.addEventListener(
+    "error",
+    () => image.replaceWith(makeAvatarFallback(player)),
+    { once: true },
+  );
+  return image;
+}
+
 function setQuickButtonActive(target) {
   elements.quickButtons.forEach((button) => button.classList.toggle("active", button === target));
 }
@@ -275,7 +323,10 @@ function renderStats(players) {
     rank.textContent = String(index + 1);
     rankCell.append(rank);
     row.append(rankCell);
-    row.append(makeCell("td", player.name, "player-name"));
+    const nameCell = document.createElement("td");
+    nameCell.className = "player-name";
+    nameCell.append(makeAvatar(player), makeCell("span", player.name, "player-label"));
+    row.append(nameCell);
     row.append(makeCell("td", String(player.accountId), "account-id"));
     row.append(makeCell("td", String(player.wins)));
     row.append(makeCell("td", String(player.losses)));
@@ -425,11 +476,15 @@ function showEmptySnapshot(data) {
 
 async function load() {
   try {
-    const response = await fetch("./data/league.json", { cache: "no-store" });
+    const [response, avatars] = await Promise.all([
+      fetch("./data/league.json", { cache: "no-store" }),
+      loadAvatars(),
+    ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     setTimeZone(data.time_zone);
     state.data = data;
+    state.avatars = avatars;
     applyBranding(data);
     if (!Array.isArray(data.matches) || data.matches.length === 0) {
       showEmptySnapshot(data);

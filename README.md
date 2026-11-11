@@ -6,7 +6,8 @@
 
 1. 联赛 ID、看板标题、时区全部收进 `config.json`，换群不用改代码；
 2. 新增 `manual` 模式：**没有官方联赛也能做看板**，把每场的 `match_id` 记进 `matches.txt` 即可；
-3. 新增 `names.json`：用群昵称覆盖 Steam 昵称（Steam 名太长、还会被改名）。
+3. 新增 `names.json`：用群昵称覆盖 Steam 昵称（Steam 名太长、还会被改名）；
+4. 排名表显示玩家 **Steam 头像**，头像缓存在 `site/data/avatars.json`，抓不到就退化成首字母徽章。
 
 ## 五分钟落地
 
@@ -25,6 +26,8 @@
   "output": "site/data/league.json",
   "time_zone": "Asia/Shanghai",
   "names_file": "names.json",
+  "avatars_file": "site/data/avatars.json",
+  "max_new_avatars": 80,
   "site": {
     "title": "XX群光荣榜",
     "subtitle": "Dota 2 内战战绩",
@@ -44,6 +47,8 @@
 | `refresh_recent` | 每次刷新重新抓最近 N 场（补全还没解析完的比赛），其余用仓库里已有的缓存，省 API 额度 |
 | `time_zone` | 看板显示与输入框用的时区，例如 `Asia/Shanghai` |
 | `names_file` | 群昵称映射文件 |
+| `avatars_file` | Steam 头像缓存，键是 `account_id`，值是头像 URL；空字符串代表“这个人没有头像，别再抓” |
+| `max_new_avatars` | 每次运行最多新查多少个玩家的头像（老玩家复用缓存，省 API 额度） |
 | `site` | 看板标题、副标题、页脚等文案，前端运行时读取，不用改 HTML |
 
 ### 3. 本地跑一次，确认能出数据
@@ -55,6 +60,8 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 ```
 
 看到 `league 19224: wrote 7 matches ...` 就成功了。想直接看页面：
+
+采集完比赛后，脚本会顺带抓这次出现的玩家的头像，并打印一行 `26 avatars cached (26 new) in site/data/avatars.json`。不想抓头像（比如只验证比赛数据）可以加 `--skip-avatars`。
 
 ```bash
 .venv/bin/python -m http.server -d site 8080
@@ -129,6 +136,22 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 
 `account_id` 就是看板表格里玩家名字下面那串数字，也可以从 OpenDota 玩家页面 URL 里拿到。设了昵称后，玩家改名不会影响看板显示；没设的玩家继续显示 Steam 昵称。
 
+## 玩家头像
+
+排名表在玩家名字左边显示 Steam 头像。头像由 `collector.py` 通过 OpenDota 的 `GET /api/players/<account_id>` 取得，结果写进 `site/data/avatars.json`：
+
+```json
+{
+  "129964895": "https://avatars.steamstatic.com/....jpg",
+  "137665114": ""
+}
+```
+
+- 只有 `http(s)` 开头的 URL 会被前端使用；`""` 表示 OpenDota 没给出头像，脚本以后不会再为这个人花额度。
+- 每次运行只查缓存里没有的玩家，上限 `max_new_avatars`（默认 80），老玩家直接复用。
+- 头像只是装饰：`avatars.json` 缺失、玩家没头像、或者 Steam CDN 上那个地址失效（404）时，前端自动换成名字首字母的圆形徽章，看板照常显示，不会报错。
+- GitHub Actions 会把 `site/data/league.json` 和 `site/data/avatars.json` 一起提交，所以缓存会一直累积；本地跑一次再 push 也能把新头像带上去。
+
 ## 前提与坑
 
 - **不需要任何账号登录。** 看板是纯静态网页，浏览器只读仓库里的 `site/data/league.json`，不会直连 OpenDota，也不需要 Steam 账号、Steam 密码或 Steam Web API Key。数据由 `collector.py` 在本地或 GitHub Actions 里抓取（匿名即可），抓取结果作为文件提交进仓库。可选的 `OPENDOTA_API_KEY` 只是一个 API 令牌，同样不是登录。
@@ -145,8 +168,8 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 config.json              唯一需要改的配置
 names.json               群昵称映射（account_id -> 昵称）
 matches.txt              manual 模式的比赛清单
-collector.py             抓 OpenDota 数据，写 site/data/league.json
-site/                    纯静态看板（index.html / app.js / styles.css / data）
+collector.py             抓 OpenDota 数据，写 site/data/league.json 与 site/data/avatars.json
+site/                    纯静态看板（index.html / app.js / styles.css / data/league.json / data/avatars.json）
 tests/test_collector.py  采集逻辑测试
 .github/workflows/pages.yml  每天刷新 + 部署 GitHub Pages
 ```

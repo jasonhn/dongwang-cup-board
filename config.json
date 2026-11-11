@@ -6,6 +6,8 @@
   "output": "site/data/league.json",
   "time_zone": "Asia/Shanghai",
   "names_file": "names.json",
+  "avatars_file": "site/data/avatars.json",
+  "max_new_avatars": 80,
   "site": {
     "title": "懂王杯光荣榜",
     "subtitle": "Dota 2 内战战绩",
