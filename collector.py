@@ -529,6 +529,20 @@ def read_manual_match_ids(path: Path, *, require_non_empty: bool = True) -> list
     return sorted(match_ids)
 
 
+def append_manual_match_ids(path: Path, match_ids: list[int]) -> list[int]:
+    """Add match ids to the manual list, skipping duplicates. Keeps comments intact."""
+    known = set(read_manual_match_ids(path, require_non_empty=False))
+    new_ids = sorted({int(match_id) for match_id in match_ids if int(match_id) > 0} - known)
+    if not new_ids:
+        return []
+    text = path.read_text(encoding="utf-8") if path.exists() else "# 手动登记的比赛 ID，每行一个。\n"
+    if text and not text.endswith("\n"):
+        text += "\n"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text + "".join(f"{match_id}\n" for match_id in new_ids), encoding="utf-8")
+    return new_ids
+
+
 def find_league_id(client: OpenDotaLeagueClient, name: str) -> int:
     """Resolve a league name to a league id using OpenDota's league listing."""
     wanted = name.strip()
@@ -985,6 +999,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Cap how many league matches tournament mode imports (default 100)",
     )
+    parser.add_argument(
+        "--add-match",
+        type=int,
+        action="append",
+        dest="added_matches",
+        default=[],
+        metavar="MATCH_ID",
+        help="Register one or more match ids in matches.txt before collecting",
+    )
     return parser
 
 
@@ -998,6 +1021,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.max_tournament_matches is not None:
         config["max_tournament_matches"] = max(1, int(args.max_tournament_matches))
     names = load_display_names(Path(config["names_file"]))
+
+    if args.added_matches:
+        added = append_manual_match_ids(Path(config["manual_match_file"]), args.added_matches)
+        if added:
+            print(f"registered {', '.join(str(match_id) for match_id in added)} in {config['manual_match_file']}")
+        else:
+            print("those match ids are already registered")
 
     with OpenDotaLeagueClient(
         api_key=os.getenv("OPENDOTA_API_KEY"),

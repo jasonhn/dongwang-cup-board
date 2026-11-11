@@ -19,6 +19,7 @@ from collector import (
     read_manual_match_ids,
     write_snapshot,
 )
+from collector import append_manual_match_ids
 from collector import SteamMatchClient
 from collector import account_ids_in_snapshot, load_avatar_cache, refresh_avatars
 
@@ -178,6 +179,28 @@ def test_read_manual_match_ids_rejects_junk(tmp_path: Path) -> None:
         assert "Invalid match id" in str(error)
     else:
         raise AssertionError("expected LeagueCollectionError")
+
+
+def test_add_match_registers_new_ids_and_skips_duplicates(tmp_path: Path) -> None:
+    path = tmp_path / "matches.txt"
+    path.write_text("# 手动登记的比赛 ID\n9081139900\n", encoding="utf-8")
+
+    added = append_manual_match_ids(path, [9085584594, 9081139900])
+
+    assert added == [9085584594]
+    assert read_manual_match_ids(path) == [9081139900, 9085584594]
+    assert "# 手动登记的比赛 ID" in path.read_text(encoding="utf-8")
+
+    assert append_manual_match_ids(path, [9085584594]) == []
+
+
+def test_add_match_creates_the_file_when_missing(tmp_path: Path) -> None:
+    path = tmp_path / "matches.txt"
+
+    added = append_manual_match_ids(path, [9085584594])
+
+    assert added == [9085584594]
+    assert read_manual_match_ids(path) == [9085584594]
 
 
 def test_load_config_merges_defaults(tmp_path: Path) -> None:

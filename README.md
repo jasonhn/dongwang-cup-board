@@ -80,7 +80,10 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 .venv/bin/python collector.py --mode manual --league-id 0
 .venv/bin/python collector.py --league-id 42 --refresh-recent 10 --output /tmp/preview.json
 .venv/bin/python collector.py --league-name "懂王杯"   # 按联赛名反查 league_id 并采集
+.venv/bin/python collector.py --add-match 9085584594    # 登记一场新比赛并立刻采集
 ```
+
+`--add-match` 会把 `match_id` 追加进 `matches.txt`（重复的会自动跳过、注释保留），然后接着采集，一条命令就能把刚打完的场次的加进看板。注意要填 **match_id**，客户端里显示的房间号（lobby id）不是它。
 
 只想知道 ID、不写数据的话，看输出里的 `Resolved '懂王杯' to league id 19905`，再把它填进 `config.json`；名字不完全一致时会列出候选，换成完全一致的名字即可。
 
@@ -147,6 +150,11 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 2. 这个联赛被 OpenDota 标成 `tier: "excluded"`（`GET /api/leagues/<league_id>` 能看出来），于是它的比赛一场都不会被归集。这种情况下即使你确实是从联赛开的房，`league` 模式也是空的，改用 `tournament` 模式（走 Valve 官方接口）就能收到。
 
 开黑排天梯匹配（`game_mode 22`）永远不会带联赛标记，这类比赛只能靠 `matches.txt` 手动登记。
+
+还有一个更根本的原因：**OpenDota 不会主动爬普通账号的比赛**。它是“按需解析”——有人第一次请求 `GET /api/matches/<match_id>` 时它才去 Valve 拉那一场。所以你们群里的新比赛在 OpenDota 里本来就是不存在的，不是它解析失败；`GET /api/players/<account_id>/matches` 只会列出已经被人请求过的场次。结论：
+
+- 想自动拿到联赛的全部比赛，只能走 Valve 官方接口，也就是 `tournament` 模式（需要免费的 Steam Web API Key，见上面）。
+- 不想配 Key 就手动登记 `match_id`，一登记 OpenDota 就会去解析这场，看板下次刷新就有了。
 
 ## 群昵称映射
 
