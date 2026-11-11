@@ -10,8 +10,8 @@
     />
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20261111-1" />
-    <script src="./app.js?v=20261111-1" type="module"></script>
+    <link rel="stylesheet" href="./styles.css?v=20261111-2" />
+    <script src="./app.js?v=20261111-2" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -129,10 +129,10 @@
               <tr>
                 <th>排名</th>
                 <th>玩家</th>
-                <th>Account ID</th>
+                <th class="col-id">Account ID</th>
                 <th>胜</th>
                 <th>负</th>
-                <th>总场数</th>
+                <th class="col-total">总场数</th>
                 <th>胜率</th>
               </tr>
             </thead>
@@ -145,11 +145,11 @@
         </div>
       </section>
 
-      <section class="panel matrix-panel" aria-labelledby="matrixTitle">
-        <div class="panel-heading matrix-heading">
+      <section class="panel team-panel" aria-labelledby="teamTitle">
+        <div class="panel-heading team-heading">
           <div>
             <p class="eyebrow">并肩作战</p>
-            <h2 id="matrixTitle">组队胜率矩阵</h2>
+            <h2 id="teamTitle">组队胜率排行</h2>
           </div>
           <div class="legend" aria-label="胜率颜色说明">
             <span><i class="legend-loss"></i>低于 40%</span>
@@ -157,15 +157,64 @@
             <span><i class="legend-win"></i>60% 以上</span>
           </div>
         </div>
-        <p class="matrix-note">格子显示“共同场数/胜率”，例如 3/66.7%。空白代表没有同队出场。</p>
-        <div class="matrix-scroll" id="matrixScroll">
-          <table class="matrix-table" id="matrixTable"></table>
+        <p class="panel-caption">
+          综合组队胜率＝把这名玩家每段队友关系的胜率各算一个样本再取平均，不按共同场次加权（加权的话结果正好等于个人胜率）；同分依次比较共同场次、队友数。点任意一行可以看这名玩家和每个队友的场次、胜负与胜率。
+        </p>
+        <div class="table-scroll" id="teamScroll">
+          <table class="stats-table team-table" id="teamTable">
+            <thead>
+              <tr>
+                <th>排名</th>
+                <th>玩家</th>
+                <th class="col-id">Account ID</th>
+                <th class="col-partners">队友数</th>
+                <th class="col-games">共同场次</th>
+                <th>
+                  <span class="wide">综合组队胜率</span><span class="narrow">组队胜率</span>
+                </th>
+                <th><span class="wide">详情</span><span class="narrow">›</span></th>
+              </tr>
+            </thead>
+            <tbody id="teamStatsBody"></tbody>
+          </table>
         </div>
-        <div class="empty-state" id="matrixEmpty" hidden>
+        <div class="empty-state" id="teamEmpty" hidden>
           <span>静</span>
-          <p>当前范围还没有可组成矩阵的玩家。</p>
+          <p>当前范围还没有可以统计组队关系的玩家。</p>
         </div>
       </section>
+
+      <dialog id="partnerDialog" class="partner-dialog" aria-labelledby="partnerName">
+        <div class="partner-head">
+          <div class="partner-avatar-slot" id="partnerAvatar"></div>
+          <div class="partner-title">
+            <strong id="partnerName">玩家</strong>
+            <span id="partnerAccount" class="account-id"></span>
+          </div>
+          <button type="button" class="dialog-close" id="partnerClose">关闭 ✕</button>
+        </div>
+        <p class="partner-meta" id="partnerMeta"></p>
+        <div class="table-scroll partner-scroll" id="partnerScroll">
+          <table class="stats-table partner-table" id="partnerTable">
+            <thead>
+              <tr>
+                <th>队友</th>
+                <th class="col-id">Account ID</th>
+                <th>共同场次</th>
+                <th>胜</th>
+                <th>负</th>
+                <th>胜率</th>
+                <th class="col-date">最近同队</th>
+              </tr>
+            </thead>
+            <tbody id="partnerBody"></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="partnerEmpty" hidden>
+          <span>单</span>
+          <p>这名玩家在当前时间范围里没有同队出场记录。</p>
+        </div>
+      </dialog>
 
       <section class="source-strip" aria-label="数据说明">
         <div class="source-icon">源</div>
