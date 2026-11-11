@@ -52,6 +52,8 @@ jobs:
         env:
           OPENDOTA_API_KEY: ${{ secrets.OPENDOTA_API_KEY }}
           OPENDOTA_MAX_PAID_CALLS: "250"
+          # Only needed when config.json sets collect_mode to "tournament".
+          STEAM_WEB_API_KEY: ${{ secrets.STEAM_WEB_API_KEY }}
         run: >-
           python collector.py --config config.json
 

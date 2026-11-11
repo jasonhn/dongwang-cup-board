@@ -43,14 +43,15 @@
 
 | 字段 | 作用 |
 |---|---|
-| `collect_mode` | `league`：只按联赛 ID 归集；`manual`：只按 `matches.txt` 手动登记的 `match_id`；`both`：两者合并统计（推荐） |
-| `league_id` | `league` 或 `both` 模式下必填。申请 Amateur League 后拿到，也可以用 `--league-name` 反查 |
+| `collect_mode` | `league`：只按联赛 ID 归集；`manual`：只按 `matches.txt` 手动登记的 `match_id`；`both`：两者合并统计；`tournament`：用 Valve 官方接口按联赛自动收锦标赛比赛（需要 `STEAM_WEB_API_KEY`） |
+| `league_id` | `league`、`both` 或 `tournament` 模式下必填。申请 Amateur League 后拿到，也可以用 `--league-name` 反查 |
 | `manual_match_file` | `manual` 模式的比赛清单，每行一个 `match_id`，`#` 开头是注释 |
 | `refresh_recent` | 每次刷新重新抓最近 N 场（补全还没解析完的比赛），其余用仓库里已有的缓存，省 API 额度 |
 | `time_zone` | 看板显示与输入框用的时区，例如 `Asia/Shanghai` |
 | `names_file` | 群昵称映射文件 |
 | `avatars_file` | Steam 头像缓存，键是 `account_id`，值是头像 URL；空字符串代表“这个人没有头像，别再抓” |
 | `max_new_avatars` | 每次运行最多新查多少个玩家的头像（老玩家复用缓存，省 API 额度） |
+| `max_tournament_matches` | `tournament` 模式一次最多导入多少场联赛比赛（默认 100，取最新的） |
 | `site` | 看板标题、副标题、页脚等文案，前端运行时读取，不用改 HTML |
 
 ### 3. 本地跑一次，确认能出数据
@@ -99,7 +100,7 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 
 可选：在仓库 Settings → Secrets and variables → Actions 里新建 `OPENDOTA_API_KEY`。脚本默认走匿名免费接口（约 60 次/分钟、3000 次/天），额度用尽才会改用带 Key 的请求，并且有 `OPENDOTA_MAX_PAID_CALLS` 上限保护。Key 只存在 Secret 或本地 `.env`，不会进仓库。
 
-## 三种收数据的方式
+## 四种收数据的方式
 
 ### `league` 模式（最省心）
 
@@ -119,9 +120,31 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 
 联赛自动归集加上 `matches.txt` 里手动登记的场次，一起统计；同一个 `match_id` 不会重复抓。适合“大部分比赛走联赛开房，偶尔有普通房间要补录”的群。
 
+### `tournament` 模式（联赛被 OpenDota 标成 excluded 时用这个）
+
+OpenDota 只归集它自己跟踪的联赛。Amateur League 经常被标成 `tier: "excluded"`，此时 `GET /api/leagues/<league_id>/matchIds` 会返回空数组，`league` 模式什么也抓不到——即使比赛确实是从联赛入口开的房。
+
+`tournament` 模式改问 Valve：`IDOTA2Match_570/GetMatchHistory/v1/?league_id=<league_id>` 会列出这个联赛的全部比赛和真正的 `match_id`，然后逐场交给 OpenDota 解析（OpenDota 是按需解析的，第一次请求某场才会去 Valve 拉数据）。`matches.txt` 里手动登记的场次也会一起合并，已经收进快照的比赛不会被丢掉，也不会重复抓。
+
+要用它需要两件事：
+
+1. 一个免费的 **Steam Web API Key**：<https://steamcommunity.com/dev/apikey>（账号需非受限状态）。填进本地 `.env` 的 `STEAM_WEB_API_KEY`，GitHub 上则放到仓库 Settings → Secrets and variables → Actions 里的 `STEAM_WEB_API_KEY`。**不要**写进 `config.json`，那个文件会进仓库。
+2. `config.json` 里把 `collect_mode` 改成 `"tournament"`，`league_id` 填你的联赛 ID。
+
+命令行也可以直接试：
+
+```bash
+STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --league-name "懂王杯"
+```
+
+注意：客户端 Settings → Game → Expose Public Match Data 必须开着，否则 Valve 不返回这场比赛的数据，采集会把它记成“尚未取得公开详情”。另外客户端比赛历史里显示的**房间号（lobby id）不是 match_id**，`tournament` 模式不需要你管这件事，手动登记时才要认准 match_id。
+
 ## 为什么联赛里打过的比赛没被收录
 
-先查 OpenDota 有没有这场：`GET /api/leagues/<league_id>/matchIds`。如果这个列表是空的，说明这场比赛**没有带 `leagueid`**，十有八九是从自定义房间或普通房开的，不是从客户端「联赛」入口开的房——联赛名存在，不代表比赛会挂到它下面。
+先查 OpenDota 有没有这场：`GET /api/leagues/<league_id>/matchIds`。如果这个列表是空的，有两种可能：
+
+1. 这场比赛**没有带 `leagueid`**——十有八九是从自定义房间或普通房开的，不是从客户端「联赛」入口开的房。联赛名存在，不代表比赛会挂到它下面。
+2. 这个联赛被 OpenDota 标成 `tier: "excluded"`（`GET /api/leagues/<league_id>` 能看出来），于是它的比赛一场都不会被归集。这种情况下即使你确实是从联赛开的房，`league` 模式也是空的，改用 `tournament` 模式（走 Valve 官方接口）就能收到。
 
 开黑排天梯匹配（`game_mode 22`）永远不会带联赛标记，这类比赛只能靠 `matches.txt` 手动登记。
 
@@ -170,7 +193,7 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 
 ## 前提与坑
 
-- **不需要任何账号登录。** 看板是纯静态网页，浏览器只读仓库里的 `site/data/league.json`，不会直连 OpenDota，也不需要 Steam 账号、Steam 密码或 Steam Web API Key。数据由 `collector.py` 在本地或 GitHub Actions 里抓取（匿名即可），抓取结果作为文件提交进仓库。可选的 `OPENDOTA_API_KEY` 只是一个 API 令牌，同样不是登录。
+- **不需要任何账号登录。** 看板是纯静态网页，浏览器只读仓库里的 `site/data/league.json`，不会直连 OpenDota，也不需要 Steam 账号或密码。数据由 `collector.py` 在本地或 GitHub Actions 里抓取，抓取结果作为文件提交进仓库。`league`、`manual`、`both` 模式匿名即可；`OPENDOTA_API_KEY` 和 `tournament` 模式用的 `STEAM_WEB_API_KEY` 都只是 API 令牌，不是登录，而且只存在 `.env` 或 GitHub Secrets 里。
 - **必须开“公开比赛数据”**：客户端 Settings → Game → Expose Public Match Data。没开的话比赛会被匿名化，看板对不上人（数据里的 `anonymous_player_slots` 会告诉你有多少个位置是匿名）。
 - **回放约 10 天过期**：过期后只剩基础数据，眼位、经济曲线等细节拿不到。本看板只用基础字段，所以不受影响，但想留细节要尽早解析。
 - **普通房间不会自动进联赛**：所以要么申请联赛，要么用 `manual` 模式手动登记。

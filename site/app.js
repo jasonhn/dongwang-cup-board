@@ -625,15 +625,21 @@ function bindControls() {
 function collectionLabel(data) {
   if (data.collection_mode === "manual") return "手动收录";
   if (data.collection_mode === "both") return `联赛 ${data.league_id} + 手动登记`;
+  if (data.collection_mode === "tournament") {
+    return `${data.league?.name || `联赛 ${data.league_id}`} 锦标赛自动收录`;
+  }
   return `联赛 ${data.league_id}`;
 }
 
 function showEmptySnapshot(data) {
+  const leagueName = data.league?.name ? `（${data.league.name}）` : "";
   const scope =
     data.collection_mode === "manual"
       ? "手动登记的清单"
-      : `联赛 ${data.league_id}${data.league?.name ? `（${data.league.name}）` : ""}` +
-        (data.collection_mode === "both" ? " 加上手动登记的清单" : "");
+      : data.collection_mode === "tournament"
+        ? `联赛 ${data.league_id}${leagueName} 的锦标赛比赛`
+        : `联赛 ${data.league_id}${leagueName}` +
+          (data.collection_mode === "both" ? " 加上手动登记的清单" : "");
   elements.heroStatus.textContent = "还没有战报入册";
   const parsed = Date.parse(data.generated_at_utc || "");
   const generated = Number.isFinite(parsed) ? parsed / 1000 : Date.now() / 1000;
@@ -691,10 +697,18 @@ async function load() {
     elements.minimumTime.textContent = formatShortLocal(state.minimum);
     elements.maximumTime.textContent = formatShortLocal(state.maximum);
     if (elements.sourceText) {
-      elements.sourceText.textContent =
-        data.collection_mode === "manual"
-          ? `每天自动刷新手动登记的 ${data.metadata?.match_ids_returned ?? data.matches.length} 场比赛。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。`
-          : `每天自动刷新${data.collection_mode === "both" ? `联赛 ${data.league_id} 和手动登记的场次` : `联赛 ${data.league_id}`}。只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。`;
+      const counted = data.metadata?.match_ids_returned ?? data.matches.length;
+      const caveat =
+        "只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。";
+      if (data.collection_mode === "manual") {
+        elements.sourceText.textContent = `每天自动刷新手动登记的 ${counted} 场比赛。${caveat}`;
+      } else if (data.collection_mode === "tournament") {
+        elements.sourceText.textContent =
+          `每天自动刷新 ${data.league?.name || `联赛 ${data.league_id}`} 的锦标赛比赛（Valve 官方接口按联赛归集），共 ${counted} 场。${caveat}`;
+      } else {
+        elements.sourceText.textContent =
+          `每天自动刷新${data.collection_mode === "both" ? `联赛 ${data.league_id} 和手动登记的场次` : `联赛 ${data.league_id}`}。${caveat}`;
+      }
     }
     elements.availableCount.textContent = String(data.metadata?.matches_available ?? data.matches.length);
     showCoverageNotice(data);

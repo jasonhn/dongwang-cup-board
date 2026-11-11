@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import httpx
+
 from collector import (
     DEFAULT_CONFIG,
     LeagueCollectionError,
@@ -9,6 +11,7 @@ from collector import (
     collect_league_data,
     collect_manual_data,
     collect_snapshot,
+    collect_tournament_data,
     find_league_id,
     load_config,
     load_display_names,
@@ -16,6 +19,7 @@ from collector import (
     read_manual_match_ids,
     write_snapshot,
 )
+from collector import SteamMatchClient
 from collector import account_ids_in_snapshot, load_avatar_cache, refresh_avatars
 
 
@@ -402,3 +406,184 @@ def test_load_config_rejects_non_numeric_avatar_budget(tmp_path: Path) -> None:
         assert "max_new_avatars" in str(error)
     else:
         raise AssertionError("expected LeagueCollectionError")
+
+
+def steam_transport(pages: list[list[int]]) -> httpx.MockTransport:
+    """Serves GetMatchHistory pages newest-first, paging downward like Valve does."""
+    state = {"page": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["api_key"] == "KEY"
+        assert request.url.params["league_id"] == "19905"
+        index = state["page"]
+        state["page"] += 1
+        matches = pages[index] if index < len(pages) else []
+        return httpx.Response(
+            200,
+            json={"result": {"status": "SUCCESS", "matches": [{"match_id": m} for m in matches]}},
+        )
+
+    return httpx.MockTransport(handler)
+
+
+def test_steam_client_pages_through_the_league_history() -> None:
+    with SteamMatchClient(
+        api_key="KEY", transport=steam_transport([[30, 20, 10], [9, 4], []])
+    ) as client:
+        ids = client.tournament_match_ids(19905, max_matches=10)
+
+    assert ids == [4, 9, 10, 20, 30]
+
+
+def test_steam_client_respects_the_match_cap() -> None:
+    with SteamMatchClient(api_key="KEY", transport=steam_transport([[50, 40, 30, 20, 10]])) as client:
+        ids = client.tournament_match_ids(19905, max_matches=3)
+
+    # The cap keeps the newest games, not the oldest ones.
+    assert ids == [30, 40, 50]
+
+
+def test_steam_client_requires_a_key() -> None:
+    try:
+        SteamMatchClient(api_key="")
+    except LeagueCollectionError as error:
+        assert "STEAM_WEB_API_KEY" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+def test_steam_client_reports_a_bad_key() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(403, json={"error": "Forbidden"})
+
+    with SteamMatchClient(api_key="NOPE", transport=httpx.MockTransport(handler)) as client:
+        try:
+            client.tournament_match_ids(19905, max_matches=10)
+        except LeagueCollectionError as error:
+            assert "rejected the Web API key" in str(error)
+        else:
+            raise AssertionError("expected LeagueCollectionError")
+
+
+class FakeSteamClient:
+    def __init__(self, ids: list[int]) -> None:
+        self.ids = ids
+        self.calls: list[tuple[int, int]] = []
+
+    def tournament_match_ids(self, league_id: int, *, max_matches: int) -> list[int]:
+        self.calls.append((league_id, max_matches))
+        return self.ids[:max_matches]
+
+
+def test_tournament_mode_merges_valve_ids_with_the_manual_list(tmp_path: Path) -> None:
+    manual_file = tmp_path / "matches.txt"
+    manual_file.write_text("9081139900\n", encoding="utf-8")
+    config = {
+        **DEFAULT_CONFIG,
+        "collect_mode": "tournament",
+        "league_id": 19905,
+        "manual_match_file": str(manual_file),
+        "max_tournament_matches": 5,
+    }
+    tournament_game = make_match(9085584594, league_id=0)
+    tournament_game["start_time"] = 1_800_000_500
+    older = make_match(9081139900, league_id=0)
+    older["start_time"] = 1_800_000_100
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯", "tier": "excluded"},
+            "/matches/9085584594": tournament_game,
+            "/matches/9081139900": older,
+        }
+    )
+    steam = FakeSteamClient([9085584594])
+
+    payload = collect_tournament_data(
+        config=config,
+        steam_client=steam,  # type: ignore[arg-type]
+        client=client,  # type: ignore[arg-type]
+        output_path=tmp_path / "league.json",
+    )
+
+    assert steam.calls == [(19905, 5)]
+    assert payload["collection_mode"] == "tournament"
+    assert payload["league"]["name"] == "懂王杯"
+    assert [match["match_id"] for match in payload["matches"]] == [9081139900, 9085584594]
+    assert payload["metadata"]["match_ids_returned"] == 2
+    # Valve-listed games keep the configured league id even when OpenDota reports 0.
+    assert payload["matches"][1]["league_id"] == 19905
+
+
+def test_tournament_mode_needs_a_steam_client(tmp_path: Path) -> None:
+    config = {**DEFAULT_CONFIG, "collect_mode": "tournament", "league_id": 19905}
+
+    try:
+        collect_snapshot(
+            config=config,
+            client=FakeClient({}),  # type: ignore[arg-type]
+            output_path=tmp_path / "league.json",
+        )
+    except LeagueCollectionError as error:
+        assert "STEAM_WEB_API_KEY" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+def test_tournament_mode_keeps_matches_already_in_the_snapshot(tmp_path: Path) -> None:
+    output = tmp_path / "league.json"
+    old = make_match(9081139900, league_id=19905)
+    old["start_time"] = 1_800_000_100
+    write_snapshot(output, {"league_id": 19905, "matches": [old]})
+    config = {
+        **DEFAULT_CONFIG,
+        "collect_mode": "tournament",
+        "league_id": 19905,
+        "refresh_recent": 1,
+        "manual_match_file": str(tmp_path / "no-matches.txt"),
+    }
+    fresh = make_match(9085584594, league_id=19905)
+    fresh["start_time"] = 1_800_000_500
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/matches/9085584594": fresh,
+        }
+    )
+
+    payload = collect_tournament_data(
+        config=config,
+        steam_client=FakeSteamClient([9085584594]),  # type: ignore[arg-type]
+        client=client,  # type: ignore[arg-type]
+        output_path=output,
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [9081139900, 9085584594]
+    # The cached match was reused, not re-fetched.
+    assert "/matches/9081139900" not in client.requested
+
+
+def test_normalise_match_treats_league_zero_as_unknown_only_when_allowed() -> None:
+    raw = make_match(5, league_id=0)
+
+    accepted = normalise_match(raw, 19905, accept_unknown_league=True)
+    assert accepted["league_id"] == 19905
+
+    try:
+        normalise_match(raw, 19905)
+    except LeagueCollectionError as error:
+        assert "belongs to league 0" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+def test_load_config_accepts_tournament_mode(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps({"collect_mode": "tournament", "max_tournament_matches": 40}),
+        encoding="utf-8",
+    )
+
+    config = load_config(path)
+
+    assert config["collect_mode"] == "tournament"
+    assert config["max_tournament_matches"] == 40

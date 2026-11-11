@@ -13,10 +13,13 @@ import httpx
 from dotenv import load_dotenv
 
 API_BASE_URL = "https://api.opendota.com/api"
+STEAM_API_BASE_URL = "https://api.steampowered.com/IDOTA2Match_570"
+STEAM_KEY_HELP = "https://steamcommunity.com/dev/apikey"
 DEFAULT_OUTPUT = Path("site/data/league.json")
 DEFAULT_CONFIG_PATH = Path("config.json")
 DEFAULT_TIME_ZONE = "Asia/Shanghai"
 DEFAULT_AVATARS_FILE = "site/data/avatars.json"
+DEFAULT_MAX_TOURNAMENT_MATCHES = 100
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "collect_mode": "league",
@@ -28,6 +31,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "names_file": "names.json",
     "avatars_file": DEFAULT_AVATARS_FILE,
     "max_new_avatars": 80,
+    "max_tournament_matches": DEFAULT_MAX_TOURNAMENT_MATCHES,
+    # Only ever read from the environment; never commit a key to this file.
+    "steam_web_api_key": "",
     "site": {
         "title": "内战光荣榜",
         "subtitle": "Dota 2 内战战绩",
@@ -152,11 +158,104 @@ class OpenDotaLeagueClient:
         return self._request(path, paid=self._free_exhausted)
 
 
+class SteamMatchClient:
+    """Valve's official Dota 2 match service, which knows the league's own games.
+
+    OpenDota only aggregates leagues it tracks; an amateur league can be marked
+    `excluded` and then report zero matches. Valve answers the same question if you
+    have a (free) Steam Web API key, so tournament mode reads the league from Valve
+    and lets OpenDota parse each match on demand.
+    """
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        timeout_seconds: float = 30.0,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
+        if not api_key:
+            raise LeagueCollectionError(
+                "tournament mode needs STEAM_WEB_API_KEY "
+                f"(get a free key at {STEAM_KEY_HELP} and put it in .env)"
+            )
+        self._api_key = api_key
+        self._client = httpx.Client(
+            base_url=STEAM_API_BASE_URL,
+            headers={"User-Agent": "ustc-dota2-hall-of-fame/1.0"},
+            timeout=timeout_seconds,
+            transport=transport,
+        )
+
+    def __enter__(self) -> SteamMatchClient:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self._client.close()
+
+    def _get(self, path: str, params: dict[str, Any]) -> dict[str, Any]:
+        try:
+            response = self._client.get(path, params={**params, "api_key": self._api_key})
+        except httpx.RequestError as error:
+            raise LeagueCollectionError(f"Steam request failed for {path}: {error}") from error
+        if response.status_code in (401, 403):
+            raise LeagueCollectionError(
+                f"Steam rejected the Web API key ({response.status_code}); "
+                f"check it at {STEAM_KEY_HELP}"
+            )
+        if response.status_code >= 400:
+            raise LeagueCollectionError(f"Steam returned {response.status_code} for {path}")
+        try:
+            payload = response.json()
+        except ValueError as error:
+            raise LeagueCollectionError(f"Steam returned invalid JSON for {path}") from error
+        result = payload.get("result") if isinstance(payload, dict) else None
+        if not isinstance(result, dict):
+            raise LeagueCollectionError("Steam returned a response without a result object")
+        error = result.get("error")
+        if error:
+            raise LeagueCollectionError(f"Steam API error for {path}: {error}")
+        return result
+
+    def tournament_match_ids(self, league_id: int, *, max_matches: int) -> list[int]:
+        """Every match Valve lists for this league, oldest first, capped at max_matches."""
+        collected: set[int] = set()
+        cursor: int | None = None
+        for _ in range(20):
+            params: dict[str, Any] = {"league_id": int(league_id)}
+            if cursor is not None:
+                params["start_at_match_id"] = cursor
+            page = self._get("/GetMatchHistory/v1", params).get("matches")
+            if not isinstance(page, list) or not page:
+                break
+            ids = [
+                int(row.get("match_id") or 0)
+                for row in page
+                if isinstance(row, dict) and int(row.get("match_id") or 0) > 0
+            ]
+            if not ids:
+                break
+            collected.update(ids)
+            if len(collected) >= max_matches:
+                break
+            # Valve pages downward, so the smallest id on the page is the next cursor.
+            next_cursor = min(ids)
+            if cursor is not None and next_cursor >= cursor:
+                break
+            cursor = next_cursor
+        # Keep the newest games when the league has more than the cap.
+        return sorted(collected)[-max_matches:]
+
+
 def normalise_match(
     raw: dict[str, Any],
     league_id: int | None = None,
     *,
     names: dict[str, str] | None = None,
+    accept_unknown_league: bool = False,
 ) -> dict[str, Any]:
     match_id = int(raw.get("match_id") or 0)
     actual_league_id = int(raw.get("leagueid") or 0)
@@ -168,9 +267,14 @@ def normalise_match(
     if match_id <= 0 or start_time <= 0 or duration < 0:
         raise LeagueCollectionError(f"Match {match_id or '<unknown>'} has invalid core fields")
     if league_id is not None and actual_league_id != league_id:
-        raise LeagueCollectionError(
-            f"Match {match_id} belongs to league {actual_league_id}, expected {league_id}"
-        )
+        # Valve reports tournament games that OpenDota sometimes stores without a
+        # leagueid; treat 0 as "unknown" instead of rejecting the whole match.
+        if accept_unknown_league and actual_league_id == 0:
+            actual_league_id = league_id
+        else:
+            raise LeagueCollectionError(
+                f"Match {match_id} belongs to league {actual_league_id}, expected {league_id}"
+            )
     if not isinstance(radiant_win, bool):
         raise LeagueCollectionError(f"Match {match_id} has no scored winner")
     if not isinstance(players, list):
@@ -243,9 +347,10 @@ def load_config(path: Path) -> dict[str, Any]:
     config["site"] = {**DEFAULT_CONFIG["site"], **(site if isinstance(site, dict) else {})}
 
     mode = str(config.get("collect_mode") or "league").strip().lower()
-    if mode not in {"league", "manual", "both"}:
+    if mode not in {"league", "manual", "both", "tournament"}:
         raise LeagueCollectionError(
-            f"collect_mode must be 'league', 'manual' or 'both', got {raw.get('collect_mode')!r}"
+            "collect_mode must be 'league', 'manual', 'both' or 'tournament', "
+            f"got {raw.get('collect_mode')!r}"
         )
     config["collect_mode"] = mode
 
@@ -263,6 +368,15 @@ def load_config(path: Path) -> dict[str, Any]:
         raise LeagueCollectionError(
             f"config.json has a non-numeric max_new_avatars field: {error}"
         ) from error
+    try:
+        config["max_tournament_matches"] = max(
+            1, int(config.get("max_tournament_matches") or DEFAULT_MAX_TOURNAMENT_MATCHES)
+        )
+    except (TypeError, ValueError) as error:
+        raise LeagueCollectionError(
+            f"config.json has a non-numeric max_tournament_matches field: {error}"
+        ) from error
+    config["steam_web_api_key"] = str(config.get("steam_web_api_key") or "").strip()
     return config
 
 
@@ -483,6 +597,7 @@ def _collect_matches(
     names: dict[str, str],
     expected_league_id: int | None,
     cache_league_id: int,
+    accept_unknown_league: bool = False,
 ) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]]]:
     existing = _load_existing(output_path, cache_league_id)
     refresh_ids = set(match_ids[-max(0, refresh_recent) :])
@@ -497,7 +612,12 @@ def _collect_matches(
             raw = client.get_json(f"/matches/{match_id}")
             if not isinstance(raw, dict):
                 raise LeagueCollectionError("invalid match payload")
-            matches[match_id] = normalise_match(raw, expected_league_id, names=names)
+            matches[match_id] = normalise_match(
+                raw,
+                expected_league_id,
+                names=names,
+                accept_unknown_league=accept_unknown_league,
+            )
         except LeagueCollectionError as error:
             if match_id in existing:
                 matches[match_id] = _apply_names(existing[match_id], names)
@@ -632,15 +752,96 @@ def collect_manual_data(
     )
 
 
+def _league_info(
+    client: OpenDotaLeagueClient, league_id: int, fallback_name: str
+) -> dict[str, str]:
+    try:
+        league = client.get_json(f"/leagues/{league_id}")
+    except LeagueCollectionError:
+        league = None
+    if not isinstance(league, dict):
+        return {"name": fallback_name, "tier": "tournament", "banner": ""}
+    return {
+        "name": str(league.get("name") or fallback_name),
+        "tier": str(league.get("tier") or "tournament"),
+        "banner": str(league.get("banner") or ""),
+    }
+
+
+def collect_tournament_data(
+    *,
+    config: dict[str, Any],
+    steam_client: SteamMatchClient,
+    client: OpenDotaLeagueClient,
+    output_path: Path,
+    names: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Import the league's own games from Valve, plus anything listed in matches.txt.
+
+    Valve knows which matches belong to the league even when OpenDota marks the
+    league `excluded` and aggregates none of them, which is what makes this mode
+    worth having for an amateur league.
+    """
+    league_id = int(config["league_id"])
+    if league_id <= 0:
+        raise LeagueCollectionError("league_id is required when collect_mode is 'tournament'")
+
+    tournament_ids = steam_client.tournament_match_ids(
+        league_id, max_matches=int(config["max_tournament_matches"])
+    )
+    manual_ids = read_manual_match_ids(
+        Path(config["manual_match_file"]), require_non_empty=False
+    )
+    # Games already in the snapshot stay there even after they fall out of the cap.
+    known_ids = set(_load_existing(output_path, league_id))
+    match_ids = sorted(set(tournament_ids) | set(manual_ids) | known_ids)
+
+    matches, unavailable = _collect_matches(
+        match_ids=match_ids,
+        output_path=output_path,
+        refresh_recent=int(config["refresh_recent"]),
+        client=client,
+        names=names or {},
+        expected_league_id=league_id,
+        cache_league_id=league_id,
+        accept_unknown_league=True,
+    )
+
+    return _build_payload(
+        config=config,
+        league_info=_league_info(
+            client, league_id, str(config["site"].get("title") or f"League {league_id}")
+        ),
+        ordered_matches=_order_matches(matches),
+        match_ids_returned=len(match_ids),
+        unavailable=unavailable,
+        client=client,
+    )
+
+
 def collect_snapshot(
     *,
     config: dict[str, Any],
     client: OpenDotaLeagueClient,
     output_path: Path,
     names: dict[str, str] | None = None,
+    steam_client: SteamMatchClient | None = None,
 ) -> dict[str, Any]:
-    """Collect according to collect_mode: league, manual, or both together."""
+    """Collect according to collect_mode: league, manual, both, or tournament."""
     mode = config["collect_mode"]
+    if mode == "tournament":
+        if steam_client is None:
+            raise LeagueCollectionError(
+                "tournament mode needs STEAM_WEB_API_KEY "
+                f"(get a free key at {STEAM_KEY_HELP})"
+            )
+        return collect_tournament_data(
+            config=config,
+            steam_client=steam_client,
+            client=client,
+            output_path=output_path,
+            names=names,
+        )
     league_enabled = mode in {"league", "both"}
     manual_enabled = mode in {"manual", "both"}
 
@@ -755,7 +956,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--mode",
-        choices=("league", "manual", "both"),
+        choices=("league", "manual", "both", "tournament"),
         default=None,
         help="Override config.json collect_mode",
     )
@@ -773,6 +974,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=int(os.getenv("OPENDOTA_MAX_PAID_CALLS", "250")),
     )
+    parser.add_argument(
+        "--steam-api-key",
+        default=os.getenv("STEAM_WEB_API_KEY", ""),
+        help="Steam Web API key for tournament mode (default: STEAM_WEB_API_KEY)",
+    )
+    parser.add_argument(
+        "--max-tournament-matches",
+        type=int,
+        default=None,
+        help="Cap how many league matches tournament mode imports (default 100)",
+    )
     return parser
 
 
@@ -783,6 +995,8 @@ def main(argv: list[str] | None = None) -> int:
     config = _resolve_config(config, args.league_id, args.output, args.refresh_recent)
     if args.mode is not None:
         config["collect_mode"] = args.mode
+    if args.max_tournament_matches is not None:
+        config["max_tournament_matches"] = max(1, int(args.max_tournament_matches))
     names = load_display_names(Path(config["names_file"]))
 
     with OpenDotaLeagueClient(
@@ -790,15 +1004,26 @@ def main(argv: list[str] | None = None) -> int:
         max_paid_calls=args.max_paid_calls,
     ) as client:
         if args.league_name:
-            config["collect_mode"] = "league"
             config["league_id"] = find_league_id(client, args.league_name)
+            if config["collect_mode"] != "tournament":
+                config["collect_mode"] = "league"
             print(f"Resolved {args.league_name!r} to league id {config['league_id']}")
-        payload = collect_snapshot(
-            config=config,
-            client=client,
-            output_path=config["output"],
-            names=names,
-        )
+        if config["collect_mode"] == "tournament":
+            with SteamMatchClient(api_key=args.steam_api_key) as steam_client:
+                payload = collect_snapshot(
+                    config=config,
+                    client=client,
+                    output_path=config["output"],
+                    names=names,
+                    steam_client=steam_client,
+                )
+        else:
+            payload = collect_snapshot(
+                config=config,
+                client=client,
+                output_path=config["output"],
+                names=names,
+            )
         if args.skip_avatars:
             avatar_line = "avatars skipped"
         else:
@@ -816,6 +1041,7 @@ def main(argv: list[str] | None = None) -> int:
             "league": f"league {config['league_id']}",
             "manual": f"manual list ({metadata['match_ids_returned']} ids)",
             "both": f"league {config['league_id']} + manual list",
+            "tournament": f"league {config['league_id']} via Valve",
         }[config["collect_mode"]]
     )
     print(
