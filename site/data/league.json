@@ -14,22 +14,20 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-11T14:24:53.695259+00:00",
+  "generated_at_utc": "2026-11-11T16:57:35.475868+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
     "match_ids_returned": 4,
-    "matches_available": 3,
-    "unavailable_matches": [
-      {
-        "match_id": 9085584594,
-        "reason": "OpenDota returned 404 for /matches/9085584594: not found"
-      }
-    ],
+    "matches_available": 4,
+    "unavailable_matches": [],
     "anonymous_player_slots": 0,
-    "incomplete_roster_match_ids": [],
+    "incomplete_roster_match_ids": [
+      9085825973
+    ],
     "paid_calls": 0,
-    "anonymous_daily_quota_exhausted": false
+    "anonymous_daily_quota_exhausted": false,
+    "manual_override_match_ids": []
   },
   "matches": [
     {
@@ -266,6 +264,29 @@
           "display_name": null,
           "player_slot": 132,
           "hero_id": 66
+        }
+      ]
+    },
+    {
+      "match_id": 9085825973,
+      "league_id": 19905,
+      "start_time": 1794412252,
+      "duration": 467,
+      "radiant_win": false,
+      "players": [
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 6
+        },
+        {
+          "account_id": 144829897,
+          "personaname": "力量护腕",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 6
         }
       ]
     }

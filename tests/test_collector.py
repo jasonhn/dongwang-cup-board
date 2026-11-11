@@ -20,6 +20,7 @@ from collector import (
     write_snapshot,
 )
 from collector import append_manual_match_ids
+from collector import load_match_overrides
 from collector import SteamMatchClient
 from collector import account_ids_in_snapshot, load_avatar_cache, refresh_avatars
 
@@ -610,3 +611,72 @@ def test_load_config_accepts_tournament_mode(tmp_path: Path) -> None:
 
     assert config["collect_mode"] == "tournament"
     assert config["max_tournament_matches"] == 40
+
+
+def make_override_entry(match_id: int = 9085584594, *, start_time: int = 1_800_000_000) -> dict[str, Any]:
+    slots = list(range(5)) + list(range(128, 133))
+    players = [
+        {"account_id": 1000 + index, "personaname": f"Player {index}", "player_slot": slot, "hero_id": slot + 1}
+        for index, slot in enumerate(slots)
+    ]
+    return {
+        "match_id": match_id,
+        "start_time": start_time,
+        "duration": 2000,
+        "radiant_win": True,
+        "players": players,
+    }
+
+
+def write_overrides(tmp_path: Path, entries: list[dict[str, Any]]) -> Path:
+    path = tmp_path / "overrides.json"
+    path.write_text(json.dumps({"matches": entries}, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def test_overrides_are_read_and_normalised(tmp_path: Path) -> None:
+    overrides = load_match_overrides(write_overrides(tmp_path, [make_override_entry()]), names={"1000": "老王"})
+
+    assert list(overrides) == [9085584594]
+    match = overrides[9085584594]
+    assert len(match["players"]) == 10
+    assert match["players"][0]["display_name"] == "老王"
+
+
+def test_missing_or_empty_overrides_file_is_fine(tmp_path: Path) -> None:
+    assert load_match_overrides(tmp_path / "nope.json") == {}
+    empty = tmp_path / "overrides.json"
+    empty.write_text("[]", encoding="utf-8")
+    assert load_match_overrides(empty) == {}
+
+
+def test_incomplete_override_is_rejected(tmp_path: Path) -> None:
+    entry = make_override_entry()
+    entry.pop("radiant_win")
+
+    try:
+        load_match_overrides(write_overrides(tmp_path, [entry]))
+    except LeagueCollectionError as error:
+        assert "9085584594" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+def test_manual_override_replaces_a_match_opendota_cannot_see(tmp_path: Path) -> None:
+    overrides = load_match_overrides(write_overrides(tmp_path, [make_override_entry()]))
+    config = {**DEFAULT_CONFIG, "collect_mode": "manual", "league_id": 19905}
+    client = FakeClient({"/matches/9085584594": {"error": "not found"}})
+
+    payload = collect_manual_data(
+        match_ids=[9085584594],
+        output_path=tmp_path / "league.json",
+        refresh_recent=1,
+        client=client,  # type: ignore[arg-type]
+        config=config,
+        overrides=overrides,
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [9085584594]
+    assert payload["metadata"]["unavailable_matches"] == []
+    assert payload["metadata"]["manual_override_match_ids"] == [9085584594]
+    assert payload["metadata"]["anonymous_player_slots"] == 0

@@ -14,8 +14,8 @@ on:
       - "matches.txt"
       - "tests/**"
   schedule:
-    # 每天 UTC 01:00，也就是北京时间 09:00。GitHub cron 用 UTC，改时间时记得换算。
-    - cron: "0 1 * * *"
+    # 每小时一次（GitHub cron 用 UTC）。联赛归集是增量的，改成每小时后新场次最多一小时就上榜。
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:

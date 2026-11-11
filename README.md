@@ -1,6 +1,6 @@
 # 内战光荣榜（Dota 2 内战 / 联赛公开看板）
 
-一个纯静态的 Dota 2 内战战绩看板：按时间范围统计每个玩家的胜、负、总场数、个人胜率与组队胜率，点 Account ID 还能展开这名玩家和每个队友的同队场次与胜率。数据每天从 OpenDota 自动刷新，部署在 GitHub Pages 上，群里直接发链接就能看。
+一个纯静态的 Dota 2 内战战绩看板：按时间范围统计每个玩家的胜、负、总场数、个人胜率与组队胜率，点 Account ID 还能展开这名玩家和每个队友的同队场次与胜率。数据每小时从 OpenDota 自动刷新，部署在 GitHub Pages 上，群里直接发链接就能看。
 
 派生自 <https://github.com/BCSZSZ/ustc-dota2-hall-of-fame>，在其基础上做了三件事：
 
@@ -50,6 +50,7 @@
 | `time_zone` | 看板显示与输入框用的时区，例如 `Asia/Shanghai` |
 | `names_file` | 群昵称映射文件 |
 | `avatars_file` | Steam 头像缓存，键是 `account_id`，值是头像 URL；空字符串代表“这个人没有头像，别再抓” |
+| `overrides_file` | 手工补录文件（默认 `overrides.json`），用来录入公开接口查不到的比赛，见下面「手工补录」 |
 | `max_new_avatars` | 每次运行最多新查多少个玩家的头像（老玩家复用缓存，省 API 额度） |
 | `max_tournament_matches` | `tournament` 模式一次最多导入多少场联赛比赛（默认 100，取最新的） |
 | `site` | 看板标题、副标题、页脚等文案，前端运行时读取，不用改 HTML |
@@ -96,7 +97,7 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 然后：
 
 - push 到 `main` 即触发一次刷新 + 部署；
-- 每天 UTC 01:00（北京时间 09:00）自动刷新。GitHub cron 用 UTC，改时间记得换算；
+- 每小时自动刷新一次（cron 是 UTC 的 `0 * * * *`，也就是每个整点）。想让频率变回去就改这一行；
 - 也可以随时在 Actions 页面手动点 “Run workflow”。
 
 部署完成后，那次运行的 deploy 步骤会打印地址，格式是 `https://<用户名>.github.io/<仓库名>/`。
@@ -155,6 +156,32 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 
 - 想自动拿到联赛的全部比赛，只能走 Valve 官方接口，也就是 `tournament` 模式（需要免费的 Steam Web API Key，见上面）。
 - 不想配 Key 就手动登记 `match_id`，一登记 OpenDota 就会去解析这场，看板下次刷新就有了。
+
+## 手工补录（国服 / 完美世界服务器的比赛）
+
+在**完美世界服务器**打的比赛，Valve 的全球接口和 OpenDota 都查不到：实测 `GET /api/matches/<id>` 全是 404，玩家的比赛历史里也没有，`www.dota2.com.cn/api/*` 需要登录态和签名，`dotabuff`、`stratz` 挡在 Cloudflare 后面。只有完美世界电竞 APP 能看到自己参加的那一场。
+
+这类比赛靠 `overrides.json` 手工录入（把 APP 里看到的数据照抄进来），采集时会合并进快照，`overrides.json` 里的手写数据优先于 OpenDota 返回的内容，并且会把这场从“尚未取得公开详情”里清掉：
+
+```json
+{
+  "matches": [
+    {
+      "match_id": 9085584594,
+      "start_time": 1794400000,
+      "duration": 2400,
+      "radiant_win": true,
+      "players": [
+        {"account_id": 129964895, "personaname": "Monkey see Monkey do", "player_slot": 0, "hero_id": 47},
+        {"account_id": 335060654, "personaname": "专治不举郭大夫", "player_slot": 1, "hero_id": 96}
+      ]
+    }
+  ]
+}
+
+```
+
+字段说明：`start_time` 是 Unix 秒（北京时间换算成 UTC 秒），`duration` 是秒数，`player_slot` 天辉 0–4、夜魇 128–132，`hero_id` 用 OpenDota 的英雄 ID，`account_id` 用 Steam 64 位 ID 减去 `76561197960141072`。录入 10 名选手即可，缺 `account_id` 的位置会被当作匿名。补录场次会记在 `metadata.manual_override_match_ids` 里，方便核对。
 
 ## 群昵称映射
 
@@ -218,7 +245,7 @@ matches.txt              manual 模式的比赛清单
 collector.py             抓 OpenDota 数据，写 site/data/league.json 与 site/data/avatars.json
 site/                    纯静态看板（index.html / app.js / styles.css / data/league.json / data/avatars.json）
 tests/test_collector.py  采集逻辑测试
-.github/workflows/pages.yml  每天刷新 + 部署 GitHub Pages
+.github/workflows/pages.yml  每小时刷新 + 部署 GitHub Pages
 ```
 
 跑测试：

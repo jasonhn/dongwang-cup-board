@@ -19,6 +19,7 @@ DEFAULT_OUTPUT = Path("site/data/league.json")
 DEFAULT_CONFIG_PATH = Path("config.json")
 DEFAULT_TIME_ZONE = "Asia/Shanghai"
 DEFAULT_AVATARS_FILE = "site/data/avatars.json"
+DEFAULT_OVERRIDES_FILE = "overrides.json"
 DEFAULT_MAX_TOURNAMENT_MATCHES = 100
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -31,6 +32,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "names_file": "names.json",
     "avatars_file": DEFAULT_AVATARS_FILE,
     "max_new_avatars": 80,
+    # Matches typed in by hand, for games no public API can see (e.g. 完美世界/国服 servers).
+    "overrides_file": DEFAULT_OVERRIDES_FILE,
     "max_tournament_matches": DEFAULT_MAX_TOURNAMENT_MATCHES,
     # Only ever read from the environment; never commit a key to this file.
     "steam_web_api_key": "",
@@ -543,6 +546,45 @@ def append_manual_match_ids(path: Path, match_ids: list[int]) -> list[int]:
     return new_ids
 
 
+def load_match_overrides(path: Path, names: dict[str, str] | None = None) -> dict[int, dict[str, Any]]:
+    """Read hand-entered matches from overrides.json.
+
+    Games played on 完美世界/国服 servers are not exposed by Valve's public API or
+    OpenDota, so the only way to put them on the board is to transcribe what the
+    app shows. Each entry needs match_id, start_time (unix seconds), duration,
+    radiant_win and the ten players with account_id, personaname, hero_id and
+    player_slot (0-4 radiant, 128-132 dire).
+    """
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise LeagueCollectionError(f"Overrides file {path} is not valid JSON: {error}") from error
+    entries = raw.get("matches") if isinstance(raw, dict) else raw
+    if not isinstance(entries, list):
+        raise LeagueCollectionError(f"Overrides file {path} must be a list or an object with a matches list")
+
+    overrides: dict[int, dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise LeagueCollectionError(f"Overrides file {path} contains a non-object entry")
+        raw_match = {
+            "match_id": entry.get("match_id"),
+            "leagueid": entry.get("league_id") or 0,
+            "start_time": entry.get("start_time"),
+            "duration": entry.get("duration"),
+            "radiant_win": entry.get("radiant_win"),
+            "players": entry.get("players"),
+        }
+        match_id = int(raw_match["match_id"] or 0)
+        try:
+            overrides[match_id] = normalise_match(raw_match, None, names=names)
+        except LeagueCollectionError as error:
+            raise LeagueCollectionError(f"Match override {match_id or '<unknown>'} in {path}: {error}") from error
+    return overrides
+
+
 def find_league_id(client: OpenDotaLeagueClient, name: str) -> int:
     """Resolve a league name to a league id using OpenDota's league listing."""
     wanted = name.strip()
@@ -612,6 +654,7 @@ def _collect_matches(
     expected_league_id: int | None,
     cache_league_id: int,
     accept_unknown_league: bool = False,
+    overrides: dict[int, dict[str, Any]] | None = None,
 ) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]]]:
     existing = _load_existing(output_path, cache_league_id)
     refresh_ids = set(match_ids[-max(0, refresh_recent) :])
@@ -637,6 +680,13 @@ def _collect_matches(
                 matches[match_id] = _apply_names(existing[match_id], names)
             else:
                 unavailable.append({"match_id": match_id, "reason": str(error)})
+
+    # Hand-entered games win over whatever OpenDota had, and clear the "unavailable"
+    # note so the board does not claim a match it actually has.
+    if overrides:
+        for match_id, match in overrides.items():
+            matches[match_id] = match
+        unavailable = [item for item in unavailable if int(item.get("match_id") or 0) not in overrides]
     return matches, unavailable
 
 
@@ -655,6 +705,7 @@ def _build_payload(
     match_ids_returned: int,
     unavailable: list[dict[str, Any]],
     client: OpenDotaLeagueClient,
+    override_ids: list[int] | None = None,
 ) -> dict[str, Any]:
     anonymous_slots = sum(
         1
@@ -685,6 +736,7 @@ def _build_payload(
             "incomplete_roster_match_ids": incomplete_rosters,
             "paid_calls": client.paid_calls,
             "anonymous_daily_quota_exhausted": client.free_exhausted,
+            "manual_override_match_ids": sorted(override_ids or []),
         },
         "matches": ordered_matches,
     }
@@ -698,6 +750,7 @@ def collect_league_data(
     client: OpenDotaLeagueClient,
     names: dict[str, str] | None = None,
     config: dict[str, Any] | None = None,
+    overrides: dict[int, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     league = client.get_json(f"/leagues/{league_id}")
     match_ids_raw = client.get_json(f"/leagues/{league_id}/matchIds")
@@ -715,6 +768,7 @@ def collect_league_data(
         names=names or {},
         expected_league_id=league_id,
         cache_league_id=league_id,
+        overrides=overrides,
     )
     resolved = _resolve_config(config or DEFAULT_CONFIG, league_id, output_path, refresh_recent)
 
@@ -726,9 +780,10 @@ def collect_league_data(
             "banner": str(league.get("banner") or ""),
         },
         ordered_matches=_order_matches(matches),
-        match_ids_returned=len(match_ids),
+        match_ids_returned=len(set(match_ids) | set(overrides or {})),
         unavailable=unavailable,
         client=client,
+        override_ids=list(overrides or {}),
     )
 
 
@@ -740,6 +795,7 @@ def collect_manual_data(
     client: OpenDotaLeagueClient,
     names: dict[str, str] | None = None,
     config: dict[str, Any] | None = None,
+    overrides: dict[int, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     resolved = _resolve_config(config or DEFAULT_CONFIG, None, output_path, refresh_recent)
     matches, unavailable = _collect_matches(
@@ -750,6 +806,7 @@ def collect_manual_data(
         names=names or {},
         expected_league_id=None,
         cache_league_id=int(resolved["league_id"]),
+        overrides=overrides,
     )
 
     return _build_payload(
@@ -760,9 +817,10 @@ def collect_manual_data(
             "banner": "",
         },
         ordered_matches=_order_matches(matches),
-        match_ids_returned=len(match_ids),
+        match_ids_returned=len(set(match_ids) | set(overrides or {})),
         unavailable=unavailable,
         client=client,
+        override_ids=list(overrides or {}),
     )
 
 
@@ -789,6 +847,7 @@ def collect_tournament_data(
     client: OpenDotaLeagueClient,
     output_path: Path,
     names: dict[str, str] | None = None,
+    overrides: dict[int, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Import the league's own games from Valve, plus anything listed in matches.txt.
 
@@ -819,6 +878,7 @@ def collect_tournament_data(
         expected_league_id=league_id,
         cache_league_id=league_id,
         accept_unknown_league=True,
+        overrides=overrides,
     )
 
     return _build_payload(
@@ -827,9 +887,10 @@ def collect_tournament_data(
             client, league_id, str(config["site"].get("title") or f"League {league_id}")
         ),
         ordered_matches=_order_matches(matches),
-        match_ids_returned=len(match_ids),
+        match_ids_returned=len(set(match_ids) | set(overrides or {})),
         unavailable=unavailable,
         client=client,
+        override_ids=list(overrides or {}),
     )
 
 
@@ -840,6 +901,7 @@ def collect_snapshot(
     output_path: Path,
     names: dict[str, str] | None = None,
     steam_client: SteamMatchClient | None = None,
+    overrides: dict[int, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Collect according to collect_mode: league, manual, both, or tournament."""
     mode = config["collect_mode"]
@@ -855,6 +917,7 @@ def collect_snapshot(
             client=client,
             output_path=output_path,
             names=names,
+            overrides=overrides,
         )
     league_enabled = mode in {"league", "both"}
     manual_enabled = mode in {"manual", "both"}
@@ -872,6 +935,7 @@ def collect_snapshot(
             client=client,
             names=names,
             config=config,
+            overrides=overrides,
         )
     if manual_enabled and not league_enabled:
         return collect_manual_data(
@@ -881,6 +945,7 @@ def collect_snapshot(
             client=client,
             names=names,
             config=config,
+            overrides=overrides,
         )
 
     league_payload = collect_league_data(
@@ -890,6 +955,7 @@ def collect_snapshot(
         client=client,
         names=names,
         config=config,
+        overrides=overrides,
     )
     manual_ids = read_manual_match_ids(
         Path(config["manual_match_file"]), require_non_empty=False
@@ -906,6 +972,7 @@ def collect_snapshot(
         client=client,
         names=names,
         config=config,
+        overrides=overrides,
     )
     merged: dict[int, dict[str, Any]] = {
         int(match["match_id"]): match for match in league_payload["matches"]
@@ -1021,6 +1088,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.max_tournament_matches is not None:
         config["max_tournament_matches"] = max(1, int(args.max_tournament_matches))
     names = load_display_names(Path(config["names_file"]))
+    overrides = load_match_overrides(Path(config["overrides_file"]), names=names)
+    if overrides:
+        print(f"手工补录 {len(overrides)} 场：{', '.join(str(match_id) for match_id in sorted(overrides))}")
 
     if args.added_matches:
         added = append_manual_match_ids(Path(config["manual_match_file"]), args.added_matches)
@@ -1046,6 +1116,7 @@ def main(argv: list[str] | None = None) -> int:
                     output_path=config["output"],
                     names=names,
                     steam_client=steam_client,
+                    overrides=overrides,
                 )
         else:
             payload = collect_snapshot(
@@ -1053,6 +1124,7 @@ def main(argv: list[str] | None = None) -> int:
                 client=client,
                 output_path=config["output"],
                 names=names,
+                overrides=overrides,
             )
         if args.skip_avatars:
             avatar_line = "avatars skipped"

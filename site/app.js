@@ -701,13 +701,13 @@ async function load() {
       const caveat =
         "只统计能公开识别 Account ID 且有胜负结果的选手位；比赛隐私设置可能造成匿名或缺失。";
       if (data.collection_mode === "manual") {
-        elements.sourceText.textContent = `每天自动刷新手动登记的 ${counted} 场比赛。${caveat}`;
+        elements.sourceText.textContent = `每小时自动刷新手动登记的 ${counted} 场比赛。${caveat}`;
       } else if (data.collection_mode === "tournament") {
         elements.sourceText.textContent =
-          `每天自动刷新 ${data.league?.name || `联赛 ${data.league_id}`} 的锦标赛比赛（Valve 官方接口按联赛归集），共 ${counted} 场。${caveat}`;
+          `每小时自动刷新 ${data.league?.name || `联赛 ${data.league_id}`} 的锦标赛比赛（Valve 官方接口按联赛归集），共 ${counted} 场。${caveat}`;
       } else {
         elements.sourceText.textContent =
-          `每天自动刷新${data.collection_mode === "both" ? `联赛 ${data.league_id} 和手动登记的场次` : `联赛 ${data.league_id}`}。${caveat}`;
+          `每小时自动刷新${data.collection_mode === "both" ? `联赛 ${data.league_id} 和手动登记的场次` : `联赛 ${data.league_id}`}。${caveat}`;
       }
     }
     elements.availableCount.textContent = String(data.metadata?.matches_available ?? data.matches.length);
