@@ -10,8 +10,8 @@
     />
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20261111-3" />
-    <script src="./app.js?v=20261111-3" type="module"></script>
+    <link rel="stylesheet" href="./styles.css?v=20261111-4" />
+    <script src="./app.js?v=20261111-4" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -168,10 +168,18 @@
               <tr>
                 <th>队友</th>
                 <th class="col-id">Account ID</th>
-                <th>共同场次</th>
-                <th>胜</th>
-                <th>负</th>
-                <th>胜率</th>
+                <th>
+                  <button type="button" class="sort-link" data-sort="games">共同场次<span class="sort-mark" aria-hidden="true"></span></button>
+                </th>
+                <th>
+                  <button type="button" class="sort-link" data-sort="wins">胜<span class="sort-mark" aria-hidden="true"></span></button>
+                </th>
+                <th>
+                  <button type="button" class="sort-link" data-sort="losses">负<span class="sort-mark" aria-hidden="true"></span></button>
+                </th>
+                <th>
+                  <button type="button" class="sort-link" data-sort="rate">胜率<span class="sort-mark" aria-hidden="true"></span></button>
+                </th>
                 <th class="col-date">最近同队</th>
               </tr>
             </thead>

@@ -719,6 +719,9 @@ th:last-child {
 
 .player-name {
   font-weight: 800;
+}
+
+.player-cell {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -926,6 +929,38 @@ th:last-child {
 
 .partner-scroll {
   max-height: min(58vh, 560px);
+}
+
+.sort-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.sort-link:hover {
+  text-decoration: underline;
+}
+
+.sort-link:focus-visible {
+  outline: 2px solid #ffe7a8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sort-mark {
+  font-size: 0.7em;
+  opacity: 0.55;
+}
+
+.sort-link.active .sort-mark {
+  opacity: 1;
 }
 
 .partner-dialog .empty-state {
@@ -1170,7 +1205,7 @@ footer p {
     font-size: 0.85rem;
   }
 
-  .player-name {
+  .player-cell {
     gap: 7px;
   }
 

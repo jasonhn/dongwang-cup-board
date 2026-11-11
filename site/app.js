@@ -28,6 +28,7 @@ const elements = {
   partnerEmpty: document.querySelector("#partnerEmpty"),
   partnerScroll: document.querySelector("#partnerScroll"),
   partnerClose: document.querySelector("#partnerClose"),
+  sortButtons: [...document.querySelectorAll("#partnerTable .sort-link")],
   heroKicker: document.querySelector("#heroKicker"),
   heroTitle: document.querySelector("#heroTitle"),
   heroSubtitle: document.querySelector("#heroSubtitle"),
@@ -43,6 +44,8 @@ const state = {
   avatars: {},
   byId: new Map(),
   teamById: new Map(),
+  partnerRows: [],
+  partnerSort: { key: "games", dir: "desc" },
   minimum: 0,
   maximum: 0,
   from: 0,
@@ -425,15 +428,20 @@ function rateClass(rate) {
 function makePlayerCell(player, team) {
   const cell = document.createElement("td");
   cell.className = "player-name";
+  const info = team || state.teamById.get(player.accountId) || { partners: [], games: 0, meanRate: null };
+  // 单元格里再套一层 flex 容器：直接把 td 设成 flex 会让底边框不再跟行底对齐。
+  const wrapper = document.createElement("div");
+  wrapper.className = "player-cell";
   const label = document.createElement("span");
   label.className = "player-label";
   const name = document.createElement("span");
   name.textContent = player.name;
   // 手机上 Account ID 那一列放不下，改成名字下面的可点按钮。
-  const inlineId = makeIdButton(player, team || { partners: [], games: 0, meanRate: null });
+  const inlineId = makeIdButton(player, info);
   inlineId.classList.add("inline-id");
   label.append(name, inlineId);
-  cell.append(makeAvatar(player), label);
+  wrapper.append(makeAvatar(player), label);
+  cell.append(wrapper);
   return cell;
 }
 
@@ -452,25 +460,39 @@ function makeRateCell(rate) {
 }
 
 // 点 Account ID 展开这名玩家的组队明细。
-function openPartnerDialog(player, team) {
-  const { partners, games, meanRate } = team || { partners: [], games: 0, meanRate: null };
-  elements.partnerAvatar.replaceChildren(makeAvatar(player));
-  elements.partnerName.textContent = player.name;
-  elements.partnerAccount.textContent = String(player.accountId);
-  elements.partnerMeta.textContent = partners.length
-    ? `队友 ${partners.length} 人 · 同队出场 ${games} 场 · 组队胜率 ${formatPercent(meanRate)}`
-    : "这个时间范围里还没有和任何人同队出场。";
+const PARTNER_SORTS = {
+  games: (a, b) => a.games - b.games,
+  wins: (a, b) => a.wins - b.wins,
+  losses: (a, b) => a.games - a.wins - (b.games - b.wins),
+  rate: (a, b) => a.wins / a.games - b.wins / b.games,
+};
 
-  elements.partnerBody.replaceChildren();
-  const hasPartners = partners.length > 0;
-  elements.partnerEmpty.hidden = hasPartners;
-  elements.partnerScroll.hidden = !hasPartners;
-  if (!hasPartners) {
-    elements.partnerDialog.showModal();
-    return;
+function comparePartners(a, b) {
+  const compare = PARTNER_SORTS[state.partnerSort.key] || PARTNER_SORTS.games;
+  const primary = compare(a, b);
+  if (primary) return state.partnerSort.dir === "asc" ? primary : -primary;
+  // 并列时固定按“共同场次多 -> 胜场多 -> ID 小”排，方向切换时结果依然稳定。
+  return b.games - a.games || b.wins - a.wins || a.accountId - b.accountId;
+}
+
+function updateSortMarks() {
+  for (const button of elements.sortButtons) {
+    const active = button.dataset.sort === state.partnerSort.key;
+    const mark = button.querySelector(".sort-mark");
+    if (mark) {
+      mark.textContent = active ? (state.partnerSort.dir === "desc" ? "▼" : "▲") : "⇅";
+    }
+    button.classList.toggle("active", active);
+    button.closest("th")?.setAttribute(
+      "aria-sort",
+      active ? (state.partnerSort.dir === "desc" ? "descending" : "ascending") : "none",
+    );
   }
+}
 
-  for (const partner of partners) {
+function renderPartnerRows() {
+  elements.partnerBody.replaceChildren();
+  for (const partner of [...state.partnerRows].sort(comparePartners)) {
     const mate =
       state.byId.get(partner.accountId) || {
         accountId: partner.accountId,
@@ -488,6 +510,34 @@ function openPartnerDialog(player, team) {
     );
     elements.partnerBody.append(row);
   }
+}
+
+function openPartnerDialog(player, team) {
+  const { partners, games, meanRate } = team || state.teamById.get(player.accountId) || {
+    partners: [],
+    games: 0,
+    meanRate: null,
+  };
+  elements.partnerAvatar.replaceChildren(makeAvatar(player));
+  elements.partnerName.textContent = player.name;
+  elements.partnerAccount.textContent = String(player.accountId);
+  elements.partnerMeta.textContent = partners.length
+    ? `队友 ${partners.length} 人 · 同队出场 ${games} 场 · 组队胜率 ${formatPercent(meanRate)}`
+    : "这个时间范围里还没有和任何人同队出场。";
+
+  elements.partnerBody.replaceChildren();
+  const hasPartners = partners.length > 0;
+  elements.partnerEmpty.hidden = hasPartners;
+  elements.partnerScroll.hidden = !hasPartners;
+  if (!hasPartners) {
+    state.partnerRows = [];
+    elements.partnerDialog.showModal();
+    return;
+  }
+
+  state.partnerRows = partners;
+  renderPartnerRows();
+  updateSortMarks();
 
   elements.partnerDialog.showModal();
 }
@@ -497,6 +547,19 @@ function bindPartnerDialog() {
   elements.partnerDialog.addEventListener("click", (event) => {
     if (event.target === elements.partnerDialog) elements.partnerDialog.close();
   });
+  for (const button of elements.sortButtons) {
+    button.addEventListener("click", () => {
+      const key = button.dataset.sort;
+      if (state.partnerSort.key === key) {
+        state.partnerSort.dir = state.partnerSort.dir === "desc" ? "asc" : "desc";
+      } else {
+        state.partnerSort = { key, dir: "desc" };
+      }
+      updateSortMarks();
+      renderPartnerRows();
+    });
+  }
+  updateSortMarks();
 }
 
 function render() {
