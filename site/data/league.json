@@ -14,13 +14,18 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-10T15:56:25.795082+00:00",
+  "generated_at_utc": "2026-11-11T14:24:53.695259+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 3,
+    "match_ids_returned": 4,
     "matches_available": 3,
-    "unavailable_matches": [],
+    "unavailable_matches": [
+      {
+        "match_id": 9085584594,
+        "reason": "OpenDota returned 404 for /matches/9085584594: not found"
+      }
+    ],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
     "paid_calls": 0,
