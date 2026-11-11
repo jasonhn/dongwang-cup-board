@@ -19,10 +19,6 @@ const elements = {
   coverageNotice: document.querySelector("#coverageNotice"),
   statsBody: document.querySelector("#statsBody"),
   statsEmpty: document.querySelector("#statsEmpty"),
-  teamTable: document.querySelector("#teamTable"),
-  teamBody: document.querySelector("#teamStatsBody"),
-  teamEmpty: document.querySelector("#teamEmpty"),
-  teamScroll: document.querySelector("#teamScroll"),
   partnerDialog: document.querySelector("#partnerDialog"),
   partnerAvatar: document.querySelector("#partnerAvatar"),
   partnerName: document.querySelector("#partnerName"),
@@ -46,6 +42,7 @@ const state = {
   data: null,
   avatars: {},
   byId: new Map(),
+  teamById: new Map(),
   minimum: 0,
   maximum: 0,
   from: 0,
@@ -167,18 +164,6 @@ function comparePlayerRanking(left, right) {
     adjustedRateOrder ||
     right.wins - left.wins ||
     right.total - left.total ||
-    left.name.localeCompare(right.name, "zh-CN") ||
-    left.accountId - right.accountId
-  );
-}
-
-// 综合组队胜率：把这名玩家每一段队友关系的胜率当成一个样本取平均。
-// 不按共同场次加权，否则结果精确等于个人胜率（每场五人队正好贡献 4 段关系）。
-function compareTeamRanking(left, right) {
-  return (
-    right.meanRate - left.meanRate ||
-    right.games - left.games ||
-    right.partners.length - left.partners.length ||
     left.name.localeCompare(right.name, "zh-CN") ||
     left.accountId - right.accountId
   );
@@ -379,42 +364,53 @@ function calculate(matches) {
   }
 
   const byId = new Map(players.map((player) => [player.accountId, player]));
-  const teamRanking = players
-    .map((player) => {
-      const partners = (partnersOf.get(player.accountId) || []).sort(
-        (a, b) =>
-          b.games - a.games || b.wins / b.games - a.wins / a.games || a.accountId - b.accountId,
-      );
-      const games = partners.reduce((sum, partner) => sum + partner.games, 0);
-      const wins = partners.reduce((sum, partner) => sum + partner.wins, 0);
-      const meanRate = partners.length
-        ? partners.reduce((sum, partner) => sum + partner.wins / partner.games, 0) / partners.length
-        : 0;
-      return { ...player, partners, games, wins, meanRate };
-    })
-    .sort(compareTeamRanking);
+  // 综合组队胜率：每段队友关系的胜率各算一个样本再取平均。不按共同场次加权，
+  // 否则结果精确等于个人胜率（一场五人队正好贡献 4 段关系），就没有额外信息了。
+  const teamById = new Map();
+  for (const player of players) {
+    const partners = (partnersOf.get(player.accountId) || []).sort(
+      (a, b) =>
+        b.games - a.games || b.wins / b.games - a.wins / a.games || a.accountId - b.accountId,
+    );
+    const games = partners.reduce((sum, partner) => sum + partner.games, 0);
+    const wins = partners.reduce((sum, partner) => sum + partner.wins, 0);
+    const meanRate = partners.length
+      ? partners.reduce((sum, partner) => sum + partner.wins / partner.games, 0) / partners.length
+      : null;
+    teamById.set(player.accountId, { partners, games, wins, meanRate });
+  }
 
-  return { players, pairs, teamRanking, byId };
+  return { players, pairs, teamById, byId };
 }
 
-function renderStats(players) {
+function makeIdButton(player, team) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "id-link";
+  button.textContent = String(player.accountId);
+  button.setAttribute("aria-label", `查看 ${player.name}（${player.accountId}）的组队胜率明细`);
+  button.addEventListener("click", () => openPartnerDialog(player, team));
+  return button;
+}
+
+function renderStats(players, teamById) {
   elements.statsBody.replaceChildren();
   elements.statsEmpty.hidden = players.length > 0;
 
   players.forEach((player, index) => {
     const row = document.createElement("tr");
+    const team = teamById.get(player.accountId) || { partners: [], games: 0, meanRate: null };
     row.append(makeRankCell(index));
-    row.append(makePlayerCell(player));
-    row.append(makeCell("td", String(player.accountId), "account-id"));
+    row.append(makePlayerCell(player, team));
+    const idCell = document.createElement("td");
+    idCell.className = "account-id col-id";
+    idCell.append(makeIdButton(player, team));
+    row.append(idCell);
     row.append(makeCell("td", String(player.wins)));
     row.append(makeCell("td", String(player.losses)));
     row.append(makeCell("td", String(player.total), "total-games"));
-    const rateCell = document.createElement("td");
-    const pill = document.createElement("span");
-    pill.className = "rate-pill";
-    pill.textContent = formatPercent(player.wins / player.total);
-    rateCell.append(pill);
-    row.append(rateCell);
+    row.append(makeRateCell(player.wins / player.total));
+    row.append(makeRateCell(team.meanRate));
     elements.statsBody.append(row);
   });
 }
@@ -426,16 +422,16 @@ function rateClass(rate) {
   return "rate-high";
 }
 
-function makePlayerCell(player) {
+function makePlayerCell(player, team) {
   const cell = document.createElement("td");
   cell.className = "player-name";
   const label = document.createElement("span");
   label.className = "player-label";
   const name = document.createElement("span");
   name.textContent = player.name;
-  const inlineId = document.createElement("small");
-  inlineId.className = "inline-id";
-  inlineId.textContent = String(player.accountId);
+  // 手机上 Account ID 那一列放不下，改成名字下面的可点按钮。
+  const inlineId = makeIdButton(player, team || { partners: [], games: 0, meanRate: null });
+  inlineId.classList.add("inline-id");
   label.append(name, inlineId);
   cell.append(makeAvatar(player), label);
   return cell;
@@ -444,57 +440,29 @@ function makePlayerCell(player) {
 function makeRateCell(rate) {
   const cell = document.createElement("td");
   const pill = document.createElement("span");
-  pill.className = `rate-pill ${rateClass(rate)}`;
-  pill.textContent = formatPercent(rate);
+  if (rate === null) {
+    pill.className = "rate-pill rate-none";
+    pill.textContent = "—";
+  } else {
+    pill.className = `rate-pill ${rateClass(rate)}`;
+    pill.textContent = formatPercent(rate);
+  }
   cell.append(pill);
   return cell;
 }
 
-function renderTeamRanking(teamRanking) {
-  elements.teamBody.replaceChildren();
-  const hasPlayers = teamRanking.length > 0;
-  elements.teamEmpty.hidden = hasPlayers;
-  elements.teamScroll.hidden = !hasPlayers;
-  if (!hasPlayers) return;
-
-  teamRanking.forEach((player, index) => {
-    const row = document.createElement("tr");
-    row.className = "team-row";
-    row.append(makeRankCell(index), makePlayerCell(player));
-    row.append(makeCell("td", String(player.accountId), "account-id"));
-    row.append(makeCell("td", String(player.partners.length), "partner-count"));
-    row.append(makeCell("td", String(player.games), "partner-games"));
-    row.append(makeRateCell(player.meanRate));
-
-    const detailCell = document.createElement("td");
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "detail-button";
-    button.innerHTML = '<span class="wide">查看队友</span><span class="narrow">›</span>';
-    button.setAttribute("aria-label", `查看 ${player.name}（${player.accountId}）的队友记录`);
-    button.addEventListener("click", () => openPartnerDialog(player));
-    detailCell.append(button);
-    row.append(detailCell);
-
-    // 整行都可点，手机上更容易按到；按钮自己已经处理了点击。
-    row.addEventListener("click", (event) => {
-      if (event.target.closest("button")) return;
-      openPartnerDialog(player);
-    });
-    elements.teamBody.append(row);
-  });
-}
-
-function openPartnerDialog(player) {
+// 点 Account ID 展开这名玩家的组队明细。
+function openPartnerDialog(player, team) {
+  const { partners, games, meanRate } = team || { partners: [], games: 0, meanRate: null };
   elements.partnerAvatar.replaceChildren(makeAvatar(player));
   elements.partnerName.textContent = player.name;
   elements.partnerAccount.textContent = String(player.accountId);
-  elements.partnerMeta.textContent = player.partners.length
-    ? `队友 ${player.partners.length} 人 · 同队出场 ${player.games} 场 · 综合组队胜率 ${formatPercent(player.meanRate)}`
+  elements.partnerMeta.textContent = partners.length
+    ? `队友 ${partners.length} 人 · 同队出场 ${games} 场 · 组队胜率 ${formatPercent(meanRate)}`
     : "这个时间范围里还没有和任何人同队出场。";
 
   elements.partnerBody.replaceChildren();
-  const hasPartners = player.partners.length > 0;
+  const hasPartners = partners.length > 0;
   elements.partnerEmpty.hidden = hasPartners;
   elements.partnerScroll.hidden = !hasPartners;
   if (!hasPartners) {
@@ -502,7 +470,7 @@ function openPartnerDialog(player) {
     return;
   }
 
-  for (const partner of player.partners) {
+  for (const partner of partners) {
     const mate =
       state.byId.get(partner.accountId) || {
         accountId: partner.accountId,
@@ -536,13 +504,13 @@ function render() {
   const matches = state.data.matches.filter(
     (match) => match.start_time >= state.from && match.start_time <= state.to,
   );
-  const { players, teamRanking, byId } = calculate(matches);
+  const { players, teamById, byId } = calculate(matches);
   state.byId = byId;
+  state.teamById = teamById;
   elements.matchCount.textContent = String(matches.length);
   elements.playerCount.textContent = String(players.length);
   elements.rangeDays.textContent = String(Math.max(1, Math.ceil((state.to - state.from) / DAY_SECONDS)));
-  renderStats(players);
-  renderTeamRanking(teamRanking);
+  renderStats(players, teamById);
 }
 
 function showCoverageNotice(data) {
@@ -612,8 +580,6 @@ function showEmptySnapshot(data) {
     "已经打过的普通房间可以把 match_id 写进 matches.txt，并把 config.json 的 collect_mode 改成 manual。";
   elements.coverageNotice.hidden = false;
   elements.statsEmpty.hidden = false;
-  elements.teamEmpty.hidden = false;
-  elements.teamScroll.hidden = true;
 }
 
 async function load() {
@@ -682,8 +648,6 @@ async function load() {
         : `暂时无法读取联赛数据：${error.message}`;
     elements.coverageNotice.hidden = false;
     elements.statsEmpty.hidden = false;
-    elements.teamEmpty.hidden = false;
-    elements.teamScroll.hidden = true;
   }
 }
 

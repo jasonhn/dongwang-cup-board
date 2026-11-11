@@ -618,7 +618,7 @@ table {
 
 .stats-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 860px;
 }
 
 th,
@@ -732,6 +732,32 @@ th:last-child {
   display: none;
 }
 
+.id-link,
+.inline-id {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.id-link {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.id-link:hover {
+  color: var(--red-700);
+}
+
+.id-link:focus-visible {
+  outline: 2px solid var(--red-700);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .player-avatar {
   flex: 0 0 34px;
   width: 34px;
@@ -816,48 +842,24 @@ th:last-child {
   background: #cce6c4;
 }
 
-.team-heading {
-  align-items: center;
+.rate-pill.rate-none {
+  color: #a08c83;
+  background: #efe7dc;
 }
 
-.team-row {
-  cursor: pointer;
-}
-
-.detail-button {
-  display: inline-block;
-  padding: 5px 11px;
-  border: 1px solid rgba(151, 0, 24, 0.28);
-  border-radius: 999px;
-  color: #6c2f0b;
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 800;
-  background: #ffe7a8;
-  cursor: pointer;
-}
-
-.detail-button:hover {
-  background: #ffd782;
-}
-
-.detail-button:focus-visible {
-  outline: 2px solid var(--red-700);
-  outline-offset: 2px;
+.legend-inline {
+  justify-content: flex-start;
+  margin: 2px 0 16px;
 }
 
 .narrow {
   display: none;
 }
 
-.team-table,
 .partner-table {
   min-width: 700px;
 }
 
-.team-table td:nth-child(1),
-.team-table td:nth-child(2),
-.team-table td:nth-child(3),
 .partner-table td:nth-child(1),
 .partner-table td:nth-child(2) {
   text-align: left;
@@ -1068,11 +1070,15 @@ footer p {
     padding: 22px 17px;
   }
 
-  .panel-heading,
-  .team-heading {
+  .panel-heading {
     align-items: flex-start;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .legend-inline {
+    gap: 8px 12px;
+    margin: 4px 0 14px;
   }
 
   .panel-caption {
@@ -1126,13 +1132,9 @@ footer p {
   }
 
   .col-id,
-  .col-partners,
-  .col-games,
   .col-date,
   .col-total,
   td.account-id,
-  td.partner-count,
-  td.partner-games,
   td.pair-date,
   td.total-games {
     display: none;
@@ -1145,29 +1147,26 @@ footer p {
   .player-label {
     display: grid;
     gap: 1px;
-    max-width: 92px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: 0 0 76px;
+    min-width: 0;
   }
 
   .inline-id {
     display: block;
     color: var(--muted);
     font-family: Consolas, "SFMono-Regular", monospace;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 400;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .team-table,
   .partner-table {
     min-width: 0;
   }
 
   .stats-table th,
   .stats-table td {
-    padding: 10px 6px;
+    padding: 9px 5px;
     font-size: 0.85rem;
   }
 
@@ -1176,9 +1175,9 @@ footer p {
   }
 
   .player-avatar {
-    flex: 0 0 28px;
-    width: 28px;
-    height: 28px;
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
   }
 
   .rank-badge {
@@ -1202,15 +1201,9 @@ footer p {
   }
 
   .rate-pill {
-    min-width: 56px;
-    padding: 3px 8px;
-    font-size: 0.8rem;
-  }
-
-  .detail-button {
-    padding: 5px 8px;
-    font-size: 1rem;
-    line-height: 1;
+    min-width: 40px;
+    padding: 3px 5px;
+    font-size: 0.74rem;
   }
 
   .partner-dialog {

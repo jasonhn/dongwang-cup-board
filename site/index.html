@@ -10,8 +10,8 @@
     />
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20261111-2" />
-    <script src="./app.js?v=20261111-2" type="module"></script>
+    <link rel="stylesheet" href="./styles.css?v=20261111-3" />
+    <script src="./app.js?v=20261111-3" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -120,8 +120,14 @@
             <h2 id="statsTitle">玩家统计</h2>
           </div>
           <p class="panel-caption">
-            排名采用 Beta(1,1) 贝叶斯平滑：以 50% 初始胜率（等效一胜一负）进行校正，修正胜率 =（胜场 + 1）÷（总场数 + 2）；同分依次比较胜场、总场数。表中显示真实胜率。
+            排名采用 Beta(1,1) 贝叶斯平滑：以 50% 初始胜率（等效一胜一负）进行校正，修正胜率 =（胜场 + 1）÷（总场数 + 2）；同分依次比较胜场、总场数。表中显示真实胜率。<br />
+            组队胜率＝这名玩家每段队友关系胜率的平均值（不按共同场次加权，加权就等于个人胜率）。点任意一个 Account ID 可以看他和每个队友的场次、胜负与胜率。
           </p>
+        </div>
+        <div class="legend legend-inline" aria-label="胜率颜色说明">
+          <span><i class="legend-loss"></i>低于 40%</span>
+          <span><i class="legend-even"></i>40%–59.9%</span>
+          <span><i class="legend-win"></i>60% 以上</span>
         </div>
         <div class="table-scroll">
           <table class="stats-table">
@@ -133,7 +139,8 @@
                 <th>胜</th>
                 <th>负</th>
                 <th class="col-total">总场数</th>
-                <th>胜率</th>
+                <th><span class="wide">个人胜率</span><span class="narrow">个人</span></th>
+                <th><span class="wide">组队胜率</span><span class="narrow">组队</span></th>
               </tr>
             </thead>
             <tbody id="statsBody"></tbody>
@@ -142,45 +149,6 @@
         <div class="empty-state" id="statsEmpty" hidden>
           <span>空</span>
           <p>这个时间段没有比赛，换一个范围再看看。</p>
-        </div>
-      </section>
-
-      <section class="panel team-panel" aria-labelledby="teamTitle">
-        <div class="panel-heading team-heading">
-          <div>
-            <p class="eyebrow">并肩作战</p>
-            <h2 id="teamTitle">组队胜率排行</h2>
-          </div>
-          <div class="legend" aria-label="胜率颜色说明">
-            <span><i class="legend-loss"></i>低于 40%</span>
-            <span><i class="legend-even"></i>40%–59.9%</span>
-            <span><i class="legend-win"></i>60% 以上</span>
-          </div>
-        </div>
-        <p class="panel-caption">
-          综合组队胜率＝把这名玩家每段队友关系的胜率各算一个样本再取平均，不按共同场次加权（加权的话结果正好等于个人胜率）；同分依次比较共同场次、队友数。点任意一行可以看这名玩家和每个队友的场次、胜负与胜率。
-        </p>
-        <div class="table-scroll" id="teamScroll">
-          <table class="stats-table team-table" id="teamTable">
-            <thead>
-              <tr>
-                <th>排名</th>
-                <th>玩家</th>
-                <th class="col-id">Account ID</th>
-                <th class="col-partners">队友数</th>
-                <th class="col-games">共同场次</th>
-                <th>
-                  <span class="wide">综合组队胜率</span><span class="narrow">组队胜率</span>
-                </th>
-                <th><span class="wide">详情</span><span class="narrow">›</span></th>
-              </tr>
-            </thead>
-            <tbody id="teamStatsBody"></tbody>
-          </table>
-        </div>
-        <div class="empty-state" id="teamEmpty" hidden>
-          <span>静</span>
-          <p>当前范围还没有可以统计组队关系的玩家。</p>
         </div>
       </section>
 
