@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-11T16:57:35.475868+00:00",
+  "generated_at_utc": "2026-11-12T15:22:41.999773+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 4,
-    "matches_available": 4,
+    "match_ids_returned": 8,
+    "matches_available": 8,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [
@@ -287,6 +287,322 @@
           "display_name": null,
           "player_slot": 128,
           "hero_id": 6
+        }
+      ]
+    },
+    {
+      "match_id": 9086812050,
+      "league_id": 19905,
+      "start_time": 1794485366,
+      "duration": 681,
+      "radiant_win": false,
+      "players": [
+        {
+          "account_id": 866974275,
+          "personaname": "^^",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 71
+        },
+        {
+          "account_id": 140597433,
+          "personaname": "Hi",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 60
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 105
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 114
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 36
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 53
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 69
+        },
+        {
+          "account_id": 881797587,
+          "personaname": "霍格沃茨年级第一",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 85
+        },
+        {
+          "account_id": 405434331,
+          "personaname": "YuukiOVO",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 67
+        },
+        {
+          "account_id": 131204688,
+          "personaname": "一支穿云箭",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 20
+        }
+      ]
+    },
+    {
+      "match_id": 9086847398,
+      "league_id": 19905,
+      "start_time": 1794487129,
+      "duration": 1728,
+      "radiant_win": false,
+      "players": [
+        {
+          "account_id": 131204688,
+          "personaname": "一支穿云箭",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 21
+        },
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 49
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 96
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 15
+        },
+        {
+          "account_id": 866974275,
+          "personaname": "^^",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 30
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 114
+        },
+        {
+          "account_id": 255862047,
+          "personaname": "节奏带师",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 43
+        },
+        {
+          "account_id": 881797587,
+          "personaname": "霍格沃茨年级第一",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 40
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 64
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 107
+        }
+      ]
+    },
+    {
+      "match_id": 9086912769,
+      "league_id": 19905,
+      "start_time": 1794490089,
+      "duration": 1848,
+      "radiant_win": true,
+      "players": [
+        {
+          "account_id": 131204688,
+          "personaname": "一支穿云箭",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 21
+        },
+        {
+          "account_id": 141841461,
+          "personaname": "泓一",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 18
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 107
+        },
+        {
+          "account_id": 144829897,
+          "personaname": "力量护腕",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 135
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 75
+        },
+        {
+          "account_id": 866974275,
+          "personaname": "^^",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 30
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 101
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 67
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 76
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 78
+        }
+      ]
+    },
+    {
+      "match_id": 9086978789,
+      "league_id": 19905,
+      "start_time": 1794492846,
+      "duration": 2624,
+      "radiant_win": false,
+      "players": [
+        {
+          "account_id": 141841461,
+          "personaname": "泓一",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 74
+        },
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 71
+        },
+        {
+          "account_id": 144829897,
+          "personaname": "力量护腕",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 8
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 36
+        },
+        {
+          "account_id": 866974275,
+          "personaname": "^^",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 5
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 78
+        },
+        {
+          "account_id": 881797587,
+          "personaname": "霍格沃茨年级第一",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 72
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 105
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 87
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 97
         }
       ]
     }
