@@ -14,8 +14,9 @@ on:
       - "matches.txt"
       - "tests/**"
   schedule:
-    # 每小时一次（GitHub cron 用 UTC）。联赛归集是增量的，改成每小时后新场次最多一小时就上榜。
-    - cron: "0 * * * *"
+    # 每 15 分钟一次（GitHub cron 用 UTC）。联赛归集是增量的，改到这个频率后新场次最多一刻钟就上榜。
+    # GitHub 的 schedule 最少只能 5 分钟一次；高峰期触发可能晚几分钟，属正常。
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:

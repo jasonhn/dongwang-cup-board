@@ -1,6 +1,6 @@
 # 内战光荣榜（Dota 2 内战 / 联赛公开看板）
 
-一个纯静态的 Dota 2 内战战绩看板：按时间范围统计每个玩家的胜、负、总场数、个人胜率与组队胜率，点 Account ID 还能展开这名玩家和每个队友的同队场次与胜率。数据每小时从 OpenDota 自动刷新，部署在 GitHub Pages 上，群里直接发链接就能看。
+一个纯静态的 Dota 2 内战战绩看板：按时间范围统计每个玩家的胜、负、总场数、个人胜率与组队胜率，点 Account ID 还能展开这名玩家和每个队友的同队场次与胜率。数据每 15 分钟从 OpenDota 自动刷新，部署在 GitHub Pages 上，群里直接发链接就能看。
 
 派生自 <https://github.com/BCSZSZ/ustc-dota2-hall-of-fame>，在其基础上做了三件事：
 
@@ -97,12 +97,14 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 然后：
 
 - push 到 `main` 即触发一次刷新 + 部署；
-- 每小时自动刷新一次（cron 是 UTC 的 `0 * * * *`，也就是每个整点）。想让频率变回去就改这一行；
+- 每 15 分钟自动刷新一次（cron 是 UTC 的 `*/15 * * * *`，也就是每刻钟的 00/15/30/45 分）。想改频率就改这一行，GitHub 的 schedule 最少只能 5 分钟一次；
 - 也可以随时在 Actions 页面手动点 “Run workflow”。
 
 部署完成后，那次运行的 deploy 步骤会打印地址，格式是 `https://<用户名>.github.io/<仓库名>/`。
 
 可选：在仓库 Settings → Secrets and variables → Actions 里新建 `OPENDOTA_API_KEY`。脚本默认走匿名免费接口（约 60 次/分钟、3000 次/天），额度用尽才会改用带 Key 的请求，并且有 `OPENDOTA_MAX_PAID_CALLS` 上限保护。Key 只存在 Secret 或本地 `.env`，不会进仓库。
+
+刷新改成每 15 分钟一次后，一天会跑约 96 次、每次大约 10～20 个 OpenDota 请求（只重抓最近 5 场和手动登记的场次，其余走快照缓存），大概吃掉匿名日额度的三到五成。额度被吃紧时配一个 Key 最省事；不想配就把 cron 调回 `0 * * * *`。
 
 ## 四种收数据的方式
 
@@ -245,7 +247,7 @@ matches.txt              manual 模式的比赛清单
 collector.py             抓 OpenDota 数据，写 site/data/league.json 与 site/data/avatars.json
 site/                    纯静态看板（index.html / app.js / styles.css / data/league.json / data/avatars.json）
 tests/test_collector.py  采集逻辑测试
-.github/workflows/pages.yml  每小时刷新 + 部署 GitHub Pages
+.github/workflows/pages.yml  每 15 分钟刷新 + 部署 GitHub Pages
 ```
 
 跑测试：
