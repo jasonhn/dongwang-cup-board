@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-12T15:41:25.456705+00:00",
+  "generated_at_utc": "2026-11-12T18:15:41.777873+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 5,
-    "matches_available": 4,
+    "match_ids_returned": 6,
+    "matches_available": 5,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -351,6 +351,86 @@
           "display_name": null,
           "player_slot": 132,
           "hero_id": 97
+        }
+      ]
+    },
+    {
+      "match_id": 9087065380,
+      "league_id": 19905,
+      "start_time": 1794496390,
+      "duration": 1520,
+      "radiant_win": true,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 141841461,
+          "personaname": "泓一",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 135
+        },
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 123
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 119
+        },
+        {
+          "account_id": 144829897,
+          "personaname": "力量护腕",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 49
+        },
+        {
+          "account_id": 866974275,
+          "personaname": "^^",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 18
+        },
+        {
+          "account_id": 1303059558,
+          "personaname": "loony-丶-",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 86
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 14
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 62
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 108
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 128
         }
       ]
     }
