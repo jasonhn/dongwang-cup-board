@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "league_id": 19905,
-  "collection_mode": "both",
+  "collection_mode": "league",
   "league": {
     "name": "懂王杯",
     "tier": "excluded",
@@ -14,288 +14,33 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-12T15:22:41.999773+00:00",
+  "generated_at_utc": "2026-11-12T15:41:25.456705+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 8,
-    "matches_available": 8,
+    "match_ids_returned": 5,
+    "matches_available": 4,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
-    "incomplete_roster_match_ids": [
-      9085825973
-    ],
+    "incomplete_roster_match_ids": [],
     "paid_calls": 0,
     "anonymous_daily_quota_exhausted": false,
-    "manual_override_match_ids": []
+    "manual_override_match_ids": [],
+    "excluded_matches": [
+      {
+        "match_id": 9085825973,
+        "reason": "game_mode 21 不是内战（solo 房间）"
+      }
+    ]
   },
   "matches": [
-    {
-      "match_id": 9081139900,
-      "league_id": 0,
-      "start_time": 1794117021,
-      "duration": 1811,
-      "radiant_win": false,
-      "players": [
-        {
-          "account_id": 186759995,
-          "personaname": "HELLO",
-          "display_name": null,
-          "player_slot": 0,
-          "hero_id": 31
-        },
-        {
-          "account_id": 196542869,
-          "personaname": "Rxq小仙女❥(^_-)",
-          "display_name": null,
-          "player_slot": 1,
-          "hero_id": 41
-        },
-        {
-          "account_id": 384179164,
-          "personaname": "天才交易员",
-          "display_name": null,
-          "player_slot": 2,
-          "hero_id": 49
-        },
-        {
-          "account_id": 288265572,
-          "personaname": "派拉斯特的钳子",
-          "display_name": null,
-          "player_slot": 3,
-          "hero_id": 121
-        },
-        {
-          "account_id": 1443449213,
-          "personaname": "小巧麦芽糖",
-          "display_name": null,
-          "player_slot": 4,
-          "hero_id": 36
-        },
-        {
-          "account_id": 1608923432,
-          "personaname": "爱弥斯",
-          "display_name": null,
-          "player_slot": 128,
-          "hero_id": 17
-        },
-        {
-          "account_id": 758322538,
-          "personaname": "小猪快跑",
-          "display_name": null,
-          "player_slot": 129,
-          "hero_id": 60
-        },
-        {
-          "account_id": 1847152070,
-          "personaname": "FFFFFFFi",
-          "display_name": null,
-          "player_slot": 130,
-          "hero_id": 108
-        },
-        {
-          "account_id": 335060654,
-          "personaname": "专治不举郭大夫",
-          "display_name": null,
-          "player_slot": 131,
-          "hero_id": 18
-        },
-        {
-          "account_id": 129964895,
-          "personaname": "Monkey see Monkey do",
-          "display_name": "Monkey see Monkey do",
-          "player_slot": 132,
-          "hero_id": 64
-        }
-      ]
-    },
-    {
-      "match_id": 9081169937,
-      "league_id": 0,
-      "start_time": 1794119241,
-      "duration": 2164,
-      "radiant_win": false,
-      "players": [
-        {
-          "account_id": 250835140,
-          "personaname": "ꗞ",
-          "display_name": null,
-          "player_slot": 0,
-          "hero_id": 14
-        },
-        {
-          "account_id": 909859769,
-          "personaname": "wcs三亚王喷火龙铁粉",
-          "display_name": null,
-          "player_slot": 1,
-          "hero_id": 55
-        },
-        {
-          "account_id": 393339354,
-          "personaname": "章邯",
-          "display_name": null,
-          "player_slot": 2,
-          "hero_id": 36
-        },
-        {
-          "account_id": 143399775,
-          "personaname": "王翦",
-          "display_name": null,
-          "player_slot": 3,
-          "hero_id": 31
-        },
-        {
-          "account_id": 349206049,
-          "personaname": "李牧",
-          "display_name": null,
-          "player_slot": 4,
-          "hero_id": 44
-        },
-        {
-          "account_id": 1272147533,
-          "personaname": "sigam",
-          "display_name": null,
-          "player_slot": 128,
-          "hero_id": 96
-        },
-        {
-          "account_id": 1276134919,
-          "personaname": "林天晓",
-          "display_name": null,
-          "player_slot": 129,
-          "hero_id": 75
-        },
-        {
-          "account_id": 335060654,
-          "personaname": "专治不举郭大夫",
-          "display_name": null,
-          "player_slot": 130,
-          "hero_id": 8
-        },
-        {
-          "account_id": 1847152070,
-          "personaname": "FFFFFFFi",
-          "display_name": null,
-          "player_slot": 131,
-          "hero_id": 135
-        },
-        {
-          "account_id": 129964895,
-          "personaname": "Monkey see Monkey do",
-          "display_name": "Monkey see Monkey do",
-          "player_slot": 132,
-          "hero_id": 64
-        }
-      ]
-    },
-    {
-      "match_id": 9084142516,
-      "league_id": 0,
-      "start_time": 1794306976,
-      "duration": 2999,
-      "radiant_win": true,
-      "players": [
-        {
-          "account_id": 134729801,
-          "personaname": "我妻",
-          "display_name": null,
-          "player_slot": 0,
-          "hero_id": 84
-        },
-        {
-          "account_id": 357912236,
-          "personaname": "海盗书生",
-          "display_name": null,
-          "player_slot": 1,
-          "hero_id": 105
-        },
-        {
-          "account_id": 129964895,
-          "personaname": "Monkey see Monkey do",
-          "display_name": "Monkey see Monkey do",
-          "player_slot": 2,
-          "hero_id": 137
-        },
-        {
-          "account_id": 1416045197,
-          "personaname": "王祖贤",
-          "display_name": null,
-          "player_slot": 3,
-          "hero_id": 94
-        },
-        {
-          "account_id": 144841190,
-          "personaname": "光法大后期",
-          "display_name": null,
-          "player_slot": 4,
-          "hero_id": 6
-        },
-        {
-          "account_id": 149034655,
-          "personaname": "6321",
-          "display_name": null,
-          "player_slot": 128,
-          "hero_id": 52
-        },
-        {
-          "account_id": 201691623,
-          "personaname": "不要消极，要积极出击",
-          "display_name": null,
-          "player_slot": 129,
-          "hero_id": 110
-        },
-        {
-          "account_id": 1251675014,
-          "personaname": "演员9527",
-          "display_name": null,
-          "player_slot": 130,
-          "hero_id": 22
-        },
-        {
-          "account_id": 400077904,
-          "personaname": "大磨盘",
-          "display_name": null,
-          "player_slot": 131,
-          "hero_id": 76
-        },
-        {
-          "account_id": 1051733455,
-          "personaname": "夏",
-          "display_name": null,
-          "player_slot": 132,
-          "hero_id": 66
-        }
-      ]
-    },
-    {
-      "match_id": 9085825973,
-      "league_id": 19905,
-      "start_time": 1794412252,
-      "duration": 467,
-      "radiant_win": false,
-      "players": [
-        {
-          "account_id": 202188193,
-          "personaname": "千秋",
-          "display_name": null,
-          "player_slot": 0,
-          "hero_id": 6
-        },
-        {
-          "account_id": 144829897,
-          "personaname": "力量护腕",
-          "display_name": null,
-          "player_slot": 128,
-          "hero_id": 6
-        }
-      ]
-    },
     {
       "match_id": 9086812050,
       "league_id": 19905,
       "start_time": 1794485366,
       "duration": 681,
       "radiant_win": false,
+      "game_mode": 3,
       "players": [
         {
           "account_id": 866974275,
@@ -375,6 +120,7 @@
       "start_time": 1794487129,
       "duration": 1728,
       "radiant_win": false,
+      "game_mode": 2,
       "players": [
         {
           "account_id": 131204688,
@@ -454,6 +200,7 @@
       "start_time": 1794490089,
       "duration": 1848,
       "radiant_win": true,
+      "game_mode": 2,
       "players": [
         {
           "account_id": 131204688,
@@ -533,6 +280,7 @@
       "start_time": 1794492846,
       "duration": 2624,
       "radiant_win": false,
+      "game_mode": 2,
       "players": [
         {
           "account_id": 141841461,

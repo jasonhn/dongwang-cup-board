@@ -51,6 +51,8 @@
 | `names_file` | 群昵称映射文件 |
 | `avatars_file` | Steam 头像缓存，键是 `account_id`，值是头像 URL；空字符串代表“这个人没有头像，别再抓” |
 | `overrides_file` | 手工补录文件（默认 `overrides.json`），用来录入公开接口查不到的比赛，见下面「手工补录」 |
+| `exclude_game_modes` | 不算内战的 `game_mode`，默认 `[21]`（Valve 的 1v1 solo 房）。就算被联赛归集进来也不计进看板，四种模式都生效 |
+| `exclude_match_ids` | 按 `match_id` 排除的比赛（弃赛、误开的房间等），这些 ID 连请求都不会发，省额度 |
 | `max_new_avatars` | 每次运行最多新查多少个玩家的头像（老玩家复用缓存，省 API 额度） |
 | `max_tournament_matches` | `tournament` 模式一次最多导入多少场联赛比赛（默认 100，取最新的） |
 | `site` | 看板标题、副标题、页脚等文案，前端运行时读取，不用改 HTML |
@@ -113,6 +115,8 @@ cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 用联赛模式开的房间，比赛会自带 `leagueid`，OpenDota 按联赛自动归集，你什么都不用记。要拿到自己的 `league_id`，去 Valve 的联赛申请入口 <https://www.dota2.com/league/0/list> 申请 Amateur League，审批与费用以页面为准。小群不一定要折腾，先用现成联赛把看板跑顺也行。
 
 联赛刚建好、还没打比赛时 `matchIds` 是空的，看板会显示“还没有战报入册”并给出下一步提示，不会报错。
+
+联赛房间里也可能顺手开 solo（1v1 mid 同样会带上 `leagueid`），这类房间默认不算内战：`exclude_game_modes` 已经排除 `game_mode 21`，被跳过的场次会连原因一起记在 `league.json` 的 `metadata.excluded_matches` 里，不会静默消失。
 
 ### `manual` 模式（零门槛，最适合没有联赛的群）
 
@@ -235,6 +239,7 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 - **回放约 10 天过期**：过期后只剩基础数据，眼位、经济曲线等细节拿不到。本看板只用基础字段，所以不受影响，但想留细节要尽早解析。
 - **普通房间不会自动进联赛**：所以要么申请联赛，要么用 `manual` 模式手动登记。
 - **`manual` 模式不会自动收联赛比赛**：以后改走联赛开房的话，记得把 `collect_mode` 改成 `both` 或 `league`，否则联赛里的比赛会被忽略。
+- **solo 房不算内战**：1v1 mid（`game_mode 21`）即使用联赛房间开也会被跳过，看板只统计 5v5；哪天要统计别的娱乐模式，改 `exclude_game_modes` 就行，被跳过的场次和原因都能在 `metadata.excluded_matches` 里核对。
 - **匿名接口有限流**：脚本遇到限流会等到下一分钟再试，遇到日额度耗尽才切到带 Key 的请求。别在本地写高频轮询。
 - **数据是公开的**：看板会把 Steam 昵称和 `account_id` 公开挂在网页上，群内部用没问题，公开传播前想清楚。
 

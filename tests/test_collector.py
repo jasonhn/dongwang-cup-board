@@ -680,3 +680,110 @@ def test_manual_override_replaces_a_match_opendota_cannot_see(tmp_path: Path) ->
     assert payload["metadata"]["unavailable_matches"] == []
     assert payload["metadata"]["manual_override_match_ids"] == [9085584594]
     assert payload["metadata"]["anonymous_player_slots"] == 0
+
+
+def test_league_mode_skips_solo_games(tmp_path: Path) -> None:
+    solo = {**make_match(2, league_id=19905), "game_mode": 21}
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1, 2],
+            "/matches/1": make_match(1, league_id=19905),
+            "/matches/2": solo,
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [1]
+    assert payload["metadata"]["match_ids_returned"] == 2
+    assert payload["metadata"]["excluded_matches"][0]["match_id"] == 2
+    assert "21" in payload["metadata"]["excluded_matches"][0]["reason"]
+
+
+def test_excluded_match_ids_are_never_requested(tmp_path: Path) -> None:
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1, 2],
+            "/matches/1": make_match(1, league_id=19905),
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905, "exclude_match_ids": [2]},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [1]
+    assert "/matches/2" not in client.requested
+    assert payload["metadata"]["excluded_matches"] == [
+        {"match_id": 2, "reason": "config exclude_match_ids"}
+    ]
+
+
+def test_exclusion_applies_to_matches_already_in_the_snapshot(tmp_path: Path) -> None:
+    output = tmp_path / "league.json"
+    write_snapshot(
+        output,
+        {
+            "league_id": 19905,
+            "matches": [
+                normalise_match({**make_match(2, league_id=19905), "game_mode": 21}, 19905),
+                normalise_match(make_match(3, league_id=19905), 19905),
+            ],
+        },
+    )
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [2, 3],
+            "/matches/3": make_match(3, league_id=19905),
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=output,
+        refresh_recent=1,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [3]
+    assert "/matches/2" not in client.requested
+    assert [item["match_id"] for item in payload["metadata"]["excluded_matches"]] == [2]
+
+
+def test_load_config_normalises_exclusions(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps({"exclude_match_ids": [5, 3, 5], "exclude_game_modes": [21, 21]}),
+        encoding="utf-8",
+    )
+
+    config = load_config(path)
+
+    assert config["exclude_match_ids"] == [3, 5]
+    assert config["exclude_game_modes"] == [21]
+
+
+def test_load_config_rejects_non_numeric_exclusions(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"exclude_match_ids": ["1v1"]}), encoding="utf-8")
+
+    try:
+        load_config(path)
+    except LeagueCollectionError as error:
+        assert "exclude_match_ids" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")

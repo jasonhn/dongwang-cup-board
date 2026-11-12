@@ -21,6 +21,9 @@ DEFAULT_TIME_ZONE = "Asia/Shanghai"
 DEFAULT_AVATARS_FILE = "site/data/avatars.json"
 DEFAULT_OVERRIDES_FILE = "overrides.json"
 DEFAULT_MAX_TOURNAMENT_MATCHES = 100
+# Valve's solo queue rooms (1v1 mid) carry the league tag too, but they are not
+# 内战, so the board ignores those game modes unless the config says otherwise.
+DEFAULT_EXCLUDE_GAME_MODES = [21]
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "collect_mode": "league",
@@ -34,6 +37,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "max_new_avatars": 80,
     # Matches typed in by hand, for games no public API can see (e.g. 完美世界/国服 servers).
     "overrides_file": DEFAULT_OVERRIDES_FILE,
+    # Games the league aggregates but the board should ignore.
+    "exclude_game_modes": DEFAULT_EXCLUDE_GAME_MODES,
+    "exclude_match_ids": [],
     "max_tournament_matches": DEFAULT_MAX_TOURNAMENT_MATCHES,
     # Only ever read from the environment; never commit a key to this file.
     "steam_web_api_key": "",
@@ -315,6 +321,8 @@ def normalise_match(
         "start_time": start_time,
         "duration": duration,
         "radiant_win": radiant_win,
+        # Kept so the exclusions below also work on matches already in the snapshot.
+        "game_mode": int(raw.get("game_mode") or 0),
         "players": normalised_players,
     }
 
@@ -333,6 +341,20 @@ def _load_existing(path: Path, league_id: int) -> dict[int, dict[str, Any]]:
         if isinstance(match, dict) and int(match.get("match_id") or 0) > 0:
             result[int(match["match_id"])] = match
     return result
+
+
+def _int_list(value: Any, field: str, default: list[int]) -> list[int]:
+    """Read a list-of-numbers config field into a sorted, de-duplicated list."""
+    if value is None:
+        value = default
+    if not isinstance(value, list):
+        raise LeagueCollectionError(f"config.json field {field} must be a list of numbers")
+    try:
+        return sorted({int(item) for item in value})
+    except (TypeError, ValueError) as error:
+        raise LeagueCollectionError(
+            f"config.json field {field} has a non-numeric entry: {error}"
+        ) from error
 
 
 def load_config(path: Path) -> dict[str, Any]:
@@ -379,6 +401,12 @@ def load_config(path: Path) -> dict[str, Any]:
         raise LeagueCollectionError(
             f"config.json has a non-numeric max_tournament_matches field: {error}"
         ) from error
+    config["exclude_game_modes"] = _int_list(
+        config.get("exclude_game_modes"), "exclude_game_modes", DEFAULT_EXCLUDE_GAME_MODES
+    )
+    config["exclude_match_ids"] = _int_list(
+        config.get("exclude_match_ids"), "exclude_match_ids", []
+    )
     config["steam_web_api_key"] = str(config.get("steam_web_api_key") or "").strip()
     return config
 
@@ -655,29 +683,57 @@ def _collect_matches(
     cache_league_id: int,
     accept_unknown_league: bool = False,
     overrides: dict[int, dict[str, Any]] | None = None,
-) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]]]:
+    exclude_ids: list[int] | None = None,
+    exclude_game_modes: list[int] | None = None,
+) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     existing = _load_existing(output_path, cache_league_id)
     refresh_ids = set(match_ids[-max(0, refresh_recent) :])
     matches: dict[int, dict[str, Any]] = {}
     unavailable: list[dict[str, Any]] = []
+    skip_ids = {int(value) for value in (exclude_ids or [])}
+    skip_modes = {int(value) for value in (exclude_game_modes or [])}
+    # Blocked by id: drop before spending a request on them.
+    excluded: list[dict[str, Any]] = [
+        {"match_id": int(match_id), "reason": "config exclude_match_ids"}
+        for match_id in match_ids
+        if int(match_id) in skip_ids
+    ]
+    kept_ids = [match_id for match_id in match_ids if int(match_id) not in skip_ids]
 
-    for match_id in match_ids:
-        if match_id in existing and match_id not in refresh_ids:
-            matches[match_id] = _apply_names(existing[match_id], names)
+    def skipped(match_id: int, match: dict[str, Any]) -> bool:
+        game_mode = int(match.get("game_mode") or 0)
+        if game_mode not in skip_modes:
+            return False
+        excluded.append(
+            {"match_id": int(match_id), "reason": f"game_mode {game_mode} 不是内战（solo 房间）"}
+        )
+        return True
+
+    for match_id in kept_ids:
+        cached = existing.get(match_id)
+        if cached is not None and match_id not in refresh_ids:
+            if skipped(match_id, cached):
+                continue
+            matches[match_id] = _apply_names(cached, names)
             continue
         try:
             raw = client.get_json(f"/matches/{match_id}")
             if not isinstance(raw, dict):
                 raise LeagueCollectionError("invalid match payload")
-            matches[match_id] = normalise_match(
+            normalised = normalise_match(
                 raw,
                 expected_league_id,
                 names=names,
                 accept_unknown_league=accept_unknown_league,
             )
+            if skipped(match_id, normalised):
+                continue
+            matches[match_id] = normalised
         except LeagueCollectionError as error:
-            if match_id in existing:
-                matches[match_id] = _apply_names(existing[match_id], names)
+            if cached is not None:
+                if skipped(match_id, cached):
+                    continue
+                matches[match_id] = _apply_names(cached, names)
             else:
                 unavailable.append({"match_id": match_id, "reason": str(error)})
 
@@ -687,7 +743,8 @@ def _collect_matches(
         for match_id, match in overrides.items():
             matches[match_id] = match
         unavailable = [item for item in unavailable if int(item.get("match_id") or 0) not in overrides]
-    return matches, unavailable
+        excluded = [item for item in excluded if int(item.get("match_id") or 0) not in overrides]
+    return matches, unavailable, excluded
 
 
 def _order_matches(matches: dict[int, dict[str, Any]]) -> list[dict[str, Any]]:
@@ -706,6 +763,7 @@ def _build_payload(
     unavailable: list[dict[str, Any]],
     client: OpenDotaLeagueClient,
     override_ids: list[int] | None = None,
+    excluded: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     anonymous_slots = sum(
         1
@@ -737,6 +795,7 @@ def _build_payload(
             "paid_calls": client.paid_calls,
             "anonymous_daily_quota_exhausted": client.free_exhausted,
             "manual_override_match_ids": sorted(override_ids or []),
+            "excluded_matches": excluded or [],
         },
         "matches": ordered_matches,
     }
@@ -760,7 +819,8 @@ def collect_league_data(
         raise LeagueCollectionError("OpenDota returned an invalid match-ID list")
 
     match_ids = sorted({int(match_id) for match_id in match_ids_raw if int(match_id) > 0})
-    matches, unavailable = _collect_matches(
+    resolved = _resolve_config(config or DEFAULT_CONFIG, league_id, output_path, refresh_recent)
+    matches, unavailable, excluded = _collect_matches(
         match_ids=match_ids,
         output_path=output_path,
         refresh_recent=refresh_recent,
@@ -769,8 +829,9 @@ def collect_league_data(
         expected_league_id=league_id,
         cache_league_id=league_id,
         overrides=overrides,
+        exclude_ids=resolved.get("exclude_match_ids", []),
+        exclude_game_modes=resolved.get("exclude_game_modes", DEFAULT_EXCLUDE_GAME_MODES),
     )
-    resolved = _resolve_config(config or DEFAULT_CONFIG, league_id, output_path, refresh_recent)
 
     return _build_payload(
         config=resolved,
@@ -784,6 +845,7 @@ def collect_league_data(
         unavailable=unavailable,
         client=client,
         override_ids=list(overrides or {}),
+        excluded=excluded,
     )
 
 
@@ -798,7 +860,7 @@ def collect_manual_data(
     overrides: dict[int, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     resolved = _resolve_config(config or DEFAULT_CONFIG, None, output_path, refresh_recent)
-    matches, unavailable = _collect_matches(
+    matches, unavailable, excluded = _collect_matches(
         match_ids=match_ids,
         output_path=output_path,
         refresh_recent=refresh_recent,
@@ -807,6 +869,8 @@ def collect_manual_data(
         expected_league_id=None,
         cache_league_id=int(resolved["league_id"]),
         overrides=overrides,
+        exclude_ids=resolved.get("exclude_match_ids", []),
+        exclude_game_modes=resolved.get("exclude_game_modes", DEFAULT_EXCLUDE_GAME_MODES),
     )
 
     return _build_payload(
@@ -821,6 +885,7 @@ def collect_manual_data(
         unavailable=unavailable,
         client=client,
         override_ids=list(overrides or {}),
+        excluded=excluded,
     )
 
 
@@ -869,7 +934,7 @@ def collect_tournament_data(
     known_ids = set(_load_existing(output_path, league_id))
     match_ids = sorted(set(tournament_ids) | set(manual_ids) | known_ids)
 
-    matches, unavailable = _collect_matches(
+    matches, unavailable, excluded = _collect_matches(
         match_ids=match_ids,
         output_path=output_path,
         refresh_recent=int(config["refresh_recent"]),
@@ -879,6 +944,10 @@ def collect_tournament_data(
         cache_league_id=league_id,
         accept_unknown_league=True,
         overrides=overrides,
+        exclude_ids=_int_list(config.get("exclude_match_ids"), "exclude_match_ids", []),
+        exclude_game_modes=_int_list(
+            config.get("exclude_game_modes"), "exclude_game_modes", DEFAULT_EXCLUDE_GAME_MODES
+        ),
     )
 
     return _build_payload(
@@ -891,6 +960,7 @@ def collect_tournament_data(
         unavailable=unavailable,
         client=client,
         override_ids=list(overrides or {}),
+        excluded=excluded,
     )
 
 
@@ -979,6 +1049,12 @@ def collect_snapshot(
     }
     merged.update({int(match["match_id"]): match for match in manual_payload["matches"]})
 
+    league_meta = league_payload["metadata"]
+    manual_meta = manual_payload["metadata"]
+    excluded: dict[int, str] = {}
+    for item in list(league_meta["excluded_matches"]) + list(manual_meta["excluded_matches"]):
+        excluded[int(item["match_id"])] = str(item.get("reason") or "")
+
     return _build_payload(
         config=config,
         league_info=league_payload["league"],
@@ -987,6 +1063,13 @@ def collect_snapshot(
         unavailable=league_payload["metadata"]["unavailable_matches"]
         + manual_payload["metadata"]["unavailable_matches"],
         client=client,
+        override_ids=sorted(
+            {int(value) for value in league_meta["manual_override_match_ids"]}
+            | {int(value) for value in manual_meta["manual_override_match_ids"]}
+        ),
+        excluded=[
+            {"match_id": match_id, "reason": reason} for match_id, reason in sorted(excluded.items())
+        ],
     )
 
 

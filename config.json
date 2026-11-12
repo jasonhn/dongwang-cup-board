@@ -1,5 +1,5 @@
 {
-  "collect_mode": "both",
+  "collect_mode": "league",
   "league_id": 19905,
   "manual_match_file": "matches.txt",
   "refresh_recent": 5,
@@ -8,6 +8,8 @@
   "names_file": "names.json",
   "avatars_file": "site/data/avatars.json",
   "max_new_avatars": 80,
+  "exclude_game_modes": [21],
+  "exclude_match_ids": [],
   "site": {
     "title": "懂王杯光荣榜",
     "subtitle": "Dota 2 内战战绩",
