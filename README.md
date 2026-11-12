@@ -244,6 +244,7 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 config.json              唯一需要改的配置
 names.json               群昵称映射（account_id -> 昵称）
 matches.txt              manual 模式的比赛清单
+overrides.json           手工补录的比赛（公开接口查不到的场次，见「手工补录」）
 collector.py             抓 OpenDota 数据，写 site/data/league.json 与 site/data/avatars.json
 site/                    纯静态看板（index.html / app.js / styles.css / data/league.json / data/avatars.json）
 tests/test_collector.py  采集逻辑测试

@@ -12,6 +12,7 @@ on:
       - "config.json"
       - "names.json"
       - "matches.txt"
+      - "overrides.json"
       - "tests/**"
   schedule:
     # 每 15 分钟一次（GitHub cron 用 UTC）。联赛归集是增量的，改到这个频率后新场次最多一刻钟就上榜。
