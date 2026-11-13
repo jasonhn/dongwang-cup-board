@@ -59,11 +59,21 @@
 
 ### 3. 本地跑一次，确认能出数据
 
+需要 **Python 3.11 及以上**（脚本用了 `datetime.UTC`），macOS 自带的 3.9 跑不了。
+
 ```bash
 python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
 cp .env.example .env          # 可选：填 OPENDOTA_API_KEY
 .venv/bin/python collector.py
 ```
+
+`.venv/` 不入库，所以换机器、或者本机 Python 被升级/卸载之后，`.venv/bin/python` 会变成断链（报 `no such file or directory`）。用 uv 重建一条命令就够：
+
+```bash
+uv venv --seed --python 3.13 .venv && uv pip install -r requirements.txt
+```
+
+> 如果 uv 下载 Python 时报 `Invalid gzip header`，是 `UV_PYTHON_INSTALL_MIRROR` 指向的镜像包坏了，换成默认源重试：`env -u UV_PYTHON_INSTALL_MIRROR uv venv --seed --python 3.13 .venv`。仓库里的 `.python-version` 已经把版本钉在 3.13，`uv venv` 会自动挑对解释器。
 
 看到 `league 19224: wrote 7 matches ...` 就成功了。想直接看页面：
 
