@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "league_id": 19905,
-  "collection_mode": "league",
+  "collection_mode": "both",
   "league": {
     "name": "懂王杯",
     "tier": "excluded",
@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-13T16:00:16.059382+00:00",
+  "generated_at_utc": "2026-11-14T15:38:42.498650+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 9,
-    "matches_available": 8,
+    "match_ids_returned": 12,
+    "matches_available": 11,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -671,6 +671,246 @@
           "display_name": null,
           "player_slot": 132,
           "hero_id": 49
+        }
+      ]
+    },
+    {
+      "match_id": 9089282128,
+      "league_id": 0,
+      "start_time": 1794635256,
+      "duration": 1705,
+      "radiant_win": false,
+      "game_mode": 22,
+      "players": [
+        {
+          "account_id": 299260368,
+          "personaname": "とか",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 20
+        },
+        {
+          "account_id": 787043957,
+          "personaname": "xxxx...xxxxxx",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 22
+        },
+        {
+          "account_id": 290080162,
+          "personaname": "Sudalgod",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 1
+        },
+        {
+          "account_id": 280468412,
+          "personaname": "Uncle Daks",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 121
+        },
+        {
+          "account_id": 196208940,
+          "personaname": "NoobMaster69",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 135
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 78
+        },
+        {
+          "account_id": 296541394,
+          "personaname": "别See了 宝贝",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 35
+        },
+        {
+          "account_id": 195588330,
+          "personaname": "KKK",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 88
+        },
+        {
+          "account_id": 144961634,
+          "personaname": "波音777",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 5
+        },
+        {
+          "account_id": 399099327,
+          "personaname": "KK",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 106
+        }
+      ]
+    },
+    {
+      "match_id": 9089311300,
+      "league_id": 0,
+      "start_time": 1794637571,
+      "duration": 3024,
+      "radiant_win": true,
+      "game_mode": 22,
+      "players": [
+        {
+          "account_id": 420655469,
+          "personaname": "Bards",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 28
+        },
+        {
+          "account_id": 1231762329,
+          "personaname": "Boss Atan",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 49
+        },
+        {
+          "account_id": 442579073,
+          "personaname": "Rz-",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 46
+        },
+        {
+          "account_id": 146131683,
+          "personaname": "indifferente",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 105
+        },
+        {
+          "account_id": 888910509,
+          "personaname": "I Hope You Enjoyed Laning",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 26
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 135
+        },
+        {
+          "account_id": 296541394,
+          "personaname": "别See了 宝贝",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 1
+        },
+        {
+          "account_id": 399099327,
+          "personaname": "KK",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 36
+        },
+        {
+          "account_id": 144961634,
+          "personaname": "波音777",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 5
+        },
+        {
+          "account_id": 195588330,
+          "personaname": "KKK",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 52
+        }
+      ]
+    },
+    {
+      "match_id": 9089358279,
+      "league_id": 0,
+      "start_time": 1794640972,
+      "duration": 2524,
+      "radiant_win": true,
+      "game_mode": 22,
+      "players": [
+        {
+          "account_id": 186729361,
+          "personaname": "payr",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 123
+        },
+        {
+          "account_id": 374702980,
+          "personaname": "Fanzell.",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 98
+        },
+        {
+          "account_id": 236782503,
+          "personaname": "天鸽",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 54
+        },
+        {
+          "account_id": 307590487,
+          "personaname": "i told the stars about you.",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 86
+        },
+        {
+          "account_id": 1024785558,
+          "personaname": "AFO",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 17
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 39
+        },
+        {
+          "account_id": 296541394,
+          "personaname": "别See了 宝贝",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 67
+        },
+        {
+          "account_id": 399099327,
+          "personaname": "KK",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 101
+        },
+        {
+          "account_id": 195588330,
+          "personaname": "KKK",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 73
+        },
+        {
+          "account_id": 290571918,
+          "personaname": "我要验牌",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 93
         }
       ]
     }
