@@ -10,6 +10,7 @@
 4. 排名表显示玩家 **Steam 头像**，头像缓存在 `site/data/avatars.json`，抓不到就退化成首字母徽章；
 5. 前三名显示 **冠军 / 亚军 / 季军奖杯**（金、银、铜），不再是数字 1、2、3；
 6. 组队胜率并进同一张玩家表，点 Account ID 弹出队友详情；原来那个几百行几百列的矩阵删掉了，手机上不用左右拖。
+7. 玩家表下面多了一个 **「全部比赛」战报存档**：一行一场（时间 + 比赛 ID），点三角形展开该局的天辉／夜魇阵容、中文英雄名与胜负；英雄名缓存在 `site/data/heroes.json`。
 
 ## 五分钟落地
 
@@ -29,6 +30,7 @@
   "time_zone": "Asia/Shanghai",
   "names_file": "names.json",
   "avatars_file": "site/data/avatars.json",
+  "heroes_file": "site/data/heroes.json",
   "max_new_avatars": 80,
   "site": {
     "title": "XX群光荣榜",
@@ -50,6 +52,7 @@
 | `time_zone` | 看板显示与输入框用的时区，例如 `Asia/Shanghai` |
 | `names_file` | 群昵称映射文件 |
 | `avatars_file` | Steam 头像缓存，键是 `account_id`，值是头像 URL；空字符串代表“这个人没有头像，别再抓” |
+| `heroes_file` | 英雄名缓存，键是 `hero_id`，值形如 `{"zh": "裂魂人", "en": "Spirit Breaker", "slug": "spirit_breaker"}`，给战报存档显示英雄用 |
 | `overrides_file` | 手工补录文件（默认 `overrides.json`），用来录入公开接口查不到的比赛，见下面「手工补录」 |
 | `exclude_game_modes` | 不算内战的 `game_mode`，默认 `[21]`（Valve 的 1v1 solo 房）。就算被联赛归集进来也不计进看板，四种模式都生效 |
 | `exclude_match_ids` | 按 `match_id` 排除的比赛（弃赛、误开的房间等），这些 ID 连请求都不会发，省额度 |
@@ -226,7 +229,25 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 - 只有 `http(s)` 开头的 URL 会被前端使用；`""` 表示 OpenDota 没给出头像，脚本以后不会再为这个人花额度。
 - 每次运行只查缓存里没有的玩家，上限 `max_new_avatars`（默认 80），老玩家直接复用。
 - 头像只是装饰：`avatars.json` 缺失、玩家没头像、或者 Steam CDN 上那个地址失效（404）时，前端自动换成名字首字母的圆形徽章，看板照常显示，不会报错。
-- GitHub Actions 会把 `site/data/league.json` 和 `site/data/avatars.json` 一起提交，所以缓存会一直累积；本地跑一次再 push 也能把新头像带上去。
+- GitHub Actions 会把 `site/data/league.json`、`site/data/avatars.json` 和 `site/data/heroes.json` 一起提交，所以缓存会一直累积；本地跑一次再 push 也能把新头像带上去。
+
+## 战报存档与英雄名
+
+玩家表下面的「全部比赛」面板列出已收录的每一场内战：一行只显示开始时间 + `match_id`（右边顺带胜负和时长），点行首的三角形展开该局详情——开始／结束时间、时长、赛制、可点开的 OpenDota 原页链接，以及天辉／夜魇两边的玩家、Account ID 和英雄。列表跟随上方的时间筛选，默认「全部战绩」就是全部已收录比赛，倒序排列，右上角还能一键展开／收起。
+
+比赛数据里只有 `hero_id`，中文名由 `collector.py` 写进 `site/data/heroes.json`：
+
+```json
+{
+  "1": { "zh": "敌法师", "en": "Anti-Mage", "slug": "antimage" },
+  "71": { "zh": "裂魂人", "en": "Spirit Breaker", "slug": "spirit_breaker" }
+}
+```
+
+- `zh` 取自 Valve 官网的 `datafeed/herolist?language=schinese`（免 key），`en` 和完整 ID 列表取自 OpenDota 的 `GET /api/heroes`，`slug` 是英雄的内部名去掉 `npc_dota_hero_` 前缀，前端用它拼 Steam CDN 的英雄图标。
+- **拼图标只能用 `slug`，不能用英文名小写**：11 号英雄的 slug 是 `nevermore`，不是 `shadow_fiend`。
+- 英雄表一年才改几次，但每次采集都会顺带校对一遍；两个来源都挂了就保留磁盘上的旧文件继续跑，Valve 挂了就临时用英文名顶上，都不会让采集失败。`--skip-heroes` 可以跳过这一步。
+- 前端读不到 `heroes.json` 时退化成 `#hero_id`，存档照常能看。
 
 ## 组队胜率与队友详情
 
@@ -260,8 +281,8 @@ config.json              唯一需要改的配置
 names.json               群昵称映射（account_id -> 昵称）
 matches.txt              manual 模式的比赛清单
 overrides.json           手工补录的比赛（公开接口查不到的场次，见「手工补录」）
-collector.py             抓 OpenDota 数据，写 site/data/league.json 与 site/data/avatars.json
-site/                    纯静态看板（index.html / app.js / styles.css / data/league.json / data/avatars.json）
+collector.py             抓 OpenDota 数据，写 site/data/league.json、avatars.json、heroes.json
+site/                    纯静态看板（index.html / app.js / styles.css / data/league.json / data/avatars.json / data/heroes.json）
 tests/test_collector.py  采集逻辑测试
 .github/workflows/pages.yml  每 15 分钟刷新 + 部署 GitHub Pages
 ```
@@ -274,7 +295,7 @@ tests/test_collector.py  采集逻辑测试
 
 ## 后续可做的事
 
-- 在 `collector.py` 里多存几个字段（如 GPM、击杀/死亡/助攻、英雄），再在 `site/app.js` 加一张“单场详情”表；
+- 战报存档再多存几个字段（GPM、击杀/死亡/助攻、KDA、经济差），展开详情里就能直接排一行数据；
 - 把 `matches.txt` 的维护交给群机器人：战报 bot 播报战绩时顺手发 `match_id`，你复制粘贴进文件即可；
 - 想做赛季排行榜/MMR，可以按赛季把 `league_id` 分段，或用多个仓库各做一个赛季的看板。
 

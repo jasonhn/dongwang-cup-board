@@ -1,0 +1,637 @@
+{
+  "1": {
+    "zh": "敌法师",
+    "en": "Anti-Mage",
+    "slug": "antimage"
+  },
+  "2": {
+    "zh": "斧王",
+    "en": "Axe",
+    "slug": "axe"
+  },
+  "3": {
+    "zh": "祸乱之源",
+    "en": "Bane",
+    "slug": "bane"
+  },
+  "4": {
+    "zh": "血魔",
+    "en": "Bloodseeker",
+    "slug": "bloodseeker"
+  },
+  "5": {
+    "zh": "水晶室女",
+    "en": "Crystal Maiden",
+    "slug": "crystal_maiden"
+  },
+  "6": {
+    "zh": "卓尔游侠",
+    "en": "Drow Ranger",
+    "slug": "drow_ranger"
+  },
+  "7": {
+    "zh": "撼地者",
+    "en": "Earthshaker",
+    "slug": "earthshaker"
+  },
+  "8": {
+    "zh": "主宰",
+    "en": "Juggernaut",
+    "slug": "juggernaut"
+  },
+  "9": {
+    "zh": "米拉娜",
+    "en": "Mirana",
+    "slug": "mirana"
+  },
+  "10": {
+    "zh": "变体精灵",
+    "en": "Morphling",
+    "slug": "morphling"
+  },
+  "11": {
+    "zh": "影魔",
+    "en": "Shadow Fiend",
+    "slug": "nevermore"
+  },
+  "12": {
+    "zh": "幻影长矛手",
+    "en": "Phantom Lancer",
+    "slug": "phantom_lancer"
+  },
+  "13": {
+    "zh": "帕克",
+    "en": "Puck",
+    "slug": "puck"
+  },
+  "14": {
+    "zh": "帕吉",
+    "en": "Pudge",
+    "slug": "pudge"
+  },
+  "15": {
+    "zh": "雷泽",
+    "en": "Razor",
+    "slug": "razor"
+  },
+  "16": {
+    "zh": "沙王",
+    "en": "Sand King",
+    "slug": "sand_king"
+  },
+  "17": {
+    "zh": "风暴之灵",
+    "en": "Storm Spirit",
+    "slug": "storm_spirit"
+  },
+  "18": {
+    "zh": "斯温",
+    "en": "Sven",
+    "slug": "sven"
+  },
+  "19": {
+    "zh": "小小",
+    "en": "Tiny",
+    "slug": "tiny"
+  },
+  "20": {
+    "zh": "复仇之魂",
+    "en": "Vengeful Spirit",
+    "slug": "vengefulspirit"
+  },
+  "21": {
+    "zh": "风行者",
+    "en": "Windranger",
+    "slug": "windrunner"
+  },
+  "22": {
+    "zh": "宙斯",
+    "en": "Zeus",
+    "slug": "zuus"
+  },
+  "23": {
+    "zh": "昆卡",
+    "en": "Kunkka",
+    "slug": "kunkka"
+  },
+  "25": {
+    "zh": "莉娜",
+    "en": "Lina",
+    "slug": "lina"
+  },
+  "26": {
+    "zh": "莱恩",
+    "en": "Lion",
+    "slug": "lion"
+  },
+  "27": {
+    "zh": "暗影萨满",
+    "en": "Shadow Shaman",
+    "slug": "shadow_shaman"
+  },
+  "28": {
+    "zh": "斯拉达",
+    "en": "Slardar",
+    "slug": "slardar"
+  },
+  "29": {
+    "zh": "潮汐猎人",
+    "en": "Tidehunter",
+    "slug": "tidehunter"
+  },
+  "30": {
+    "zh": "巫医",
+    "en": "Witch Doctor",
+    "slug": "witch_doctor"
+  },
+  "31": {
+    "zh": "巫妖",
+    "en": "Lich",
+    "slug": "lich"
+  },
+  "32": {
+    "zh": "力丸",
+    "en": "Riki",
+    "slug": "riki"
+  },
+  "33": {
+    "zh": "谜团",
+    "en": "Enigma",
+    "slug": "enigma"
+  },
+  "34": {
+    "zh": "修补匠",
+    "en": "Tinker",
+    "slug": "tinker"
+  },
+  "35": {
+    "zh": "狙击手",
+    "en": "Sniper",
+    "slug": "sniper"
+  },
+  "36": {
+    "zh": "瘟疫法师",
+    "en": "Necrophos",
+    "slug": "necrolyte"
+  },
+  "37": {
+    "zh": "术士",
+    "en": "Warlock",
+    "slug": "warlock"
+  },
+  "38": {
+    "zh": "兽王",
+    "en": "Beastmaster",
+    "slug": "beastmaster"
+  },
+  "39": {
+    "zh": "痛苦女王",
+    "en": "Queen of Pain",
+    "slug": "queenofpain"
+  },
+  "40": {
+    "zh": "剧毒术士",
+    "en": "Venomancer",
+    "slug": "venomancer"
+  },
+  "41": {
+    "zh": "虚空假面",
+    "en": "Faceless Void",
+    "slug": "faceless_void"
+  },
+  "42": {
+    "zh": "冥魂大帝",
+    "en": "Wraith King",
+    "slug": "skeleton_king"
+  },
+  "43": {
+    "zh": "死亡先知",
+    "en": "Death Prophet",
+    "slug": "death_prophet"
+  },
+  "44": {
+    "zh": "幻影刺客",
+    "en": "Phantom Assassin",
+    "slug": "phantom_assassin"
+  },
+  "45": {
+    "zh": "帕格纳",
+    "en": "Pugna",
+    "slug": "pugna"
+  },
+  "46": {
+    "zh": "圣堂刺客",
+    "en": "Templar Assassin",
+    "slug": "templar_assassin"
+  },
+  "47": {
+    "zh": "冥界亚龙",
+    "en": "Viper",
+    "slug": "viper"
+  },
+  "48": {
+    "zh": "露娜",
+    "en": "Luna",
+    "slug": "luna"
+  },
+  "49": {
+    "zh": "龙骑士",
+    "en": "Dragon Knight",
+    "slug": "dragon_knight"
+  },
+  "50": {
+    "zh": "戴泽",
+    "en": "Dazzle",
+    "slug": "dazzle"
+  },
+  "51": {
+    "zh": "发条技师",
+    "en": "Clockwerk",
+    "slug": "rattletrap"
+  },
+  "52": {
+    "zh": "拉席克",
+    "en": "Leshrac",
+    "slug": "leshrac"
+  },
+  "53": {
+    "zh": "自然先知",
+    "en": "Nature's Prophet",
+    "slug": "furion"
+  },
+  "54": {
+    "zh": "噬魂鬼",
+    "en": "Lifestealer",
+    "slug": "life_stealer"
+  },
+  "55": {
+    "zh": "黑暗贤者",
+    "en": "Dark Seer",
+    "slug": "dark_seer"
+  },
+  "56": {
+    "zh": "克林克兹",
+    "en": "Clinkz",
+    "slug": "clinkz"
+  },
+  "57": {
+    "zh": "全能骑士",
+    "en": "Omniknight",
+    "slug": "omniknight"
+  },
+  "58": {
+    "zh": "魅惑魔女",
+    "en": "Enchantress",
+    "slug": "enchantress"
+  },
+  "59": {
+    "zh": "哈斯卡",
+    "en": "Huskar",
+    "slug": "huskar"
+  },
+  "60": {
+    "zh": "暗夜魔王",
+    "en": "Night Stalker",
+    "slug": "night_stalker"
+  },
+  "61": {
+    "zh": "育母蜘蛛",
+    "en": "Broodmother",
+    "slug": "broodmother"
+  },
+  "62": {
+    "zh": "赏金猎人",
+    "en": "Bounty Hunter",
+    "slug": "bounty_hunter"
+  },
+  "63": {
+    "zh": "编织者",
+    "en": "Weaver",
+    "slug": "weaver"
+  },
+  "64": {
+    "zh": "杰奇洛",
+    "en": "Jakiro",
+    "slug": "jakiro"
+  },
+  "65": {
+    "zh": "蝙蝠骑士",
+    "en": "Batrider",
+    "slug": "batrider"
+  },
+  "66": {
+    "zh": "陈",
+    "en": "Chen",
+    "slug": "chen"
+  },
+  "67": {
+    "zh": "幽鬼",
+    "en": "Spectre",
+    "slug": "spectre"
+  },
+  "68": {
+    "zh": "远古冰魄",
+    "en": "Ancient Apparition",
+    "slug": "ancient_apparition"
+  },
+  "69": {
+    "zh": "末日使者",
+    "en": "Doom",
+    "slug": "doom_bringer"
+  },
+  "70": {
+    "zh": "熊战士",
+    "en": "Ursa",
+    "slug": "ursa"
+  },
+  "71": {
+    "zh": "裂魂人",
+    "en": "Spirit Breaker",
+    "slug": "spirit_breaker"
+  },
+  "72": {
+    "zh": "矮人直升机",
+    "en": "Gyrocopter",
+    "slug": "gyrocopter"
+  },
+  "73": {
+    "zh": "炼金术士",
+    "en": "Alchemist",
+    "slug": "alchemist"
+  },
+  "74": {
+    "zh": "祈求者",
+    "en": "Invoker",
+    "slug": "invoker"
+  },
+  "75": {
+    "zh": "沉默术士",
+    "en": "Silencer",
+    "slug": "silencer"
+  },
+  "76": {
+    "zh": "殁境神蚀者",
+    "en": "Outworld Destroyer",
+    "slug": "obsidian_destroyer"
+  },
+  "77": {
+    "zh": "狼人",
+    "en": "Lycan",
+    "slug": "lycan"
+  },
+  "78": {
+    "zh": "酒仙",
+    "en": "Brewmaster",
+    "slug": "brewmaster"
+  },
+  "79": {
+    "zh": "暗影恶魔",
+    "en": "Shadow Demon",
+    "slug": "shadow_demon"
+  },
+  "80": {
+    "zh": "独行德鲁伊",
+    "en": "Lone Druid",
+    "slug": "lone_druid"
+  },
+  "81": {
+    "zh": "混沌骑士",
+    "en": "Chaos Knight",
+    "slug": "chaos_knight"
+  },
+  "82": {
+    "zh": "米波",
+    "en": "Meepo",
+    "slug": "meepo"
+  },
+  "83": {
+    "zh": "树精卫士",
+    "en": "Treant Protector",
+    "slug": "treant"
+  },
+  "84": {
+    "zh": "食人魔魔法师",
+    "en": "Ogre Magi",
+    "slug": "ogre_magi"
+  },
+  "85": {
+    "zh": "不朽尸王",
+    "en": "Undying",
+    "slug": "undying"
+  },
+  "86": {
+    "zh": "拉比克",
+    "en": "Rubick",
+    "slug": "rubick"
+  },
+  "87": {
+    "zh": "干扰者",
+    "en": "Disruptor",
+    "slug": "disruptor"
+  },
+  "88": {
+    "zh": "司夜刺客",
+    "en": "Nyx Assassin",
+    "slug": "nyx_assassin"
+  },
+  "89": {
+    "zh": "娜迦海妖",
+    "en": "Naga Siren",
+    "slug": "naga_siren"
+  },
+  "90": {
+    "zh": "光之守卫",
+    "en": "Keeper of the Light",
+    "slug": "keeper_of_the_light"
+  },
+  "91": {
+    "zh": "艾欧",
+    "en": "Io",
+    "slug": "wisp"
+  },
+  "92": {
+    "zh": "维萨吉",
+    "en": "Visage",
+    "slug": "visage"
+  },
+  "93": {
+    "zh": "斯拉克",
+    "en": "Slark",
+    "slug": "slark"
+  },
+  "94": {
+    "zh": "美杜莎",
+    "en": "Medusa",
+    "slug": "medusa"
+  },
+  "95": {
+    "zh": "巨魔战将",
+    "en": "Troll Warlord",
+    "slug": "troll_warlord"
+  },
+  "96": {
+    "zh": "半人马战行者",
+    "en": "Centaur Warrunner",
+    "slug": "centaur"
+  },
+  "97": {
+    "zh": "马格纳斯",
+    "en": "Magnus",
+    "slug": "magnataur"
+  },
+  "98": {
+    "zh": "伐木机",
+    "en": "Timbersaw",
+    "slug": "shredder"
+  },
+  "99": {
+    "zh": "钢背兽",
+    "en": "Bristleback",
+    "slug": "bristleback"
+  },
+  "100": {
+    "zh": "巨牙海民",
+    "en": "Tusk",
+    "slug": "tusk"
+  },
+  "101": {
+    "zh": "天怒法师",
+    "en": "Skywrath Mage",
+    "slug": "skywrath_mage"
+  },
+  "102": {
+    "zh": "亚巴顿",
+    "en": "Abaddon",
+    "slug": "abaddon"
+  },
+  "103": {
+    "zh": "上古巨神",
+    "en": "Elder Titan",
+    "slug": "elder_titan"
+  },
+  "104": {
+    "zh": "军团指挥官",
+    "en": "Legion Commander",
+    "slug": "legion_commander"
+  },
+  "105": {
+    "zh": "工程师",
+    "en": "Techies",
+    "slug": "techies"
+  },
+  "106": {
+    "zh": "灰烬之灵",
+    "en": "Ember Spirit",
+    "slug": "ember_spirit"
+  },
+  "107": {
+    "zh": "大地之灵",
+    "en": "Earth Spirit",
+    "slug": "earth_spirit"
+  },
+  "108": {
+    "zh": "孽主",
+    "en": "Underlord",
+    "slug": "abyssal_underlord"
+  },
+  "109": {
+    "zh": "恐怖利刃",
+    "en": "Terrorblade",
+    "slug": "terrorblade"
+  },
+  "110": {
+    "zh": "凤凰",
+    "en": "Phoenix",
+    "slug": "phoenix"
+  },
+  "111": {
+    "zh": "神谕者",
+    "en": "Oracle",
+    "slug": "oracle"
+  },
+  "112": {
+    "zh": "寒冬飞龙",
+    "en": "Winter Wyvern",
+    "slug": "winter_wyvern"
+  },
+  "113": {
+    "zh": "天穹守望者",
+    "en": "Arc Warden",
+    "slug": "arc_warden"
+  },
+  "114": {
+    "zh": "齐天大圣",
+    "en": "Monkey King",
+    "slug": "monkey_king"
+  },
+  "119": {
+    "zh": "邪影芳灵",
+    "en": "Dark Willow",
+    "slug": "dark_willow"
+  },
+  "120": {
+    "zh": "石鳞剑士",
+    "en": "Pangolier",
+    "slug": "pangolier"
+  },
+  "121": {
+    "zh": "天涯墨客",
+    "en": "Grimstroke",
+    "slug": "grimstroke"
+  },
+  "123": {
+    "zh": "森海飞霞",
+    "en": "Hoodwink",
+    "slug": "hoodwink"
+  },
+  "126": {
+    "zh": "虚无之灵",
+    "en": "Void Spirit",
+    "slug": "void_spirit"
+  },
+  "128": {
+    "zh": "电炎绝手",
+    "en": "Snapfire",
+    "slug": "snapfire"
+  },
+  "129": {
+    "zh": "玛尔斯",
+    "en": "Mars",
+    "slug": "mars"
+  },
+  "131": {
+    "zh": "百戏大王",
+    "en": "Ringmaster",
+    "slug": "ringmaster"
+  },
+  "135": {
+    "zh": "破晓辰星",
+    "en": "Dawnbreaker",
+    "slug": "dawnbreaker"
+  },
+  "136": {
+    "zh": "玛西",
+    "en": "Marci",
+    "slug": "marci"
+  },
+  "137": {
+    "zh": "獸",
+    "en": "Primal Beast",
+    "slug": "primal_beast"
+  },
+  "138": {
+    "zh": "琼英碧灵",
+    "en": "Muerta",
+    "slug": "muerta"
+  },
+  "145": {
+    "zh": "凯",
+    "en": "Kez",
+    "slug": "kez"
+  },
+  "155": {
+    "zh": "朗戈",
+    "en": "Largo",
+    "slug": "largo"
+  }
+}

@@ -19,8 +19,13 @@ DEFAULT_OUTPUT = Path("site/data/league.json")
 DEFAULT_CONFIG_PATH = Path("config.json")
 DEFAULT_TIME_ZONE = "Asia/Shanghai"
 DEFAULT_AVATARS_FILE = "site/data/avatars.json"
+DEFAULT_HEROES_FILE = "site/data/heroes.json"
 DEFAULT_OVERRIDES_FILE = "overrides.json"
 DEFAULT_MAX_TOURNAMENT_MATCHES = 100
+# Valve publishes the Simplified Chinese hero table here; it needs no API key.
+VALVE_HERO_LIST_URL = "https://www.dota2.com/datafeed/herolist"
+# Both APIs spell internal names this way; the CDN icon paths use the remainder.
+HERO_INTERNAL_PREFIX = "npc_dota_hero_"
 # Valve's solo queue rooms (1v1 mid) carry the league tag too, but they are not
 # 内战, so the board ignores those game modes unless the config says otherwise.
 DEFAULT_EXCLUDE_GAME_MODES = [21]
@@ -35,6 +40,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "names_file": "names.json",
     "avatars_file": DEFAULT_AVATARS_FILE,
     "max_new_avatars": 80,
+    "heroes_file": DEFAULT_HEROES_FILE,
     # Matches typed in by hand, for games no public API can see (e.g. 完美世界/国服 servers).
     "overrides_file": DEFAULT_OVERRIDES_FILE,
     # Games the league aggregates but the board should ignore.
@@ -387,6 +393,7 @@ def load_config(path: Path) -> dict[str, Any]:
     config["output"] = Path(config.get("output") or DEFAULT_OUTPUT)
     config["time_zone"] = str(config.get("time_zone") or DEFAULT_TIME_ZONE)
     config["avatars_file"] = str(config.get("avatars_file") or DEFAULT_AVATARS_FILE)
+    config["heroes_file"] = str(config.get("heroes_file") or DEFAULT_HEROES_FILE)
     try:
         config["max_new_avatars"] = max(0, int(config.get("max_new_avatars") or 0))
     except (TypeError, ValueError) as error:
@@ -535,6 +542,203 @@ def refresh_avatars(
     )
     write_avatars(path, avatars)
     return path, len(avatars), fetched
+
+
+def _hero_id(value: Any) -> int | None:
+    """Read a hero id out of either API's payload, or None when it is junk."""
+    try:
+        hero_id = int(value)
+    except (TypeError, ValueError):
+        return None
+    return hero_id if hero_id > 0 else None
+
+
+def _hero_slug(internal_name: Any) -> str:
+    """`npc_dota_hero_antimage` -> `antimage`, which is what the CDN icons use."""
+    return str(internal_name or "").strip().removeprefix(HERO_INTERNAL_PREFIX)
+
+
+def load_hero_cache(path: Path) -> dict[str, dict[str, str]]:
+    """Load the cached hero_id -> {zh, en, slug} mapping; {} when missing or unusable."""
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+
+    heroes: dict[str, dict[str, str]] = {}
+    for key, value in raw.items():
+        hero_id = _hero_id(key)
+        if hero_id is None or not isinstance(value, dict):
+            continue
+        entry = {field: str(value.get(field) or "") for field in ("zh", "en", "slug")}
+        if entry["zh"] or entry["en"]:
+            heroes[str(hero_id)] = entry
+    return heroes
+
+
+def fetch_valve_hero_names(
+    *,
+    transport: httpx.BaseTransport | None = None,
+    timeout_seconds: float = 30.0,
+) -> dict[int, dict[str, str]]:
+    """Hero names in 简体中文 straight from Valve's datafeed.
+
+    Returns {hero_id: {"zh": ..., "en": ..., "slug": ...}} with only the fields
+    Valve actually filled in. Raises when the response cannot be trusted.
+    """
+    try:
+        with httpx.Client(
+            headers={"User-Agent": "ustc-dota2-hall-of-fame/1.0"},
+            timeout=timeout_seconds,
+            transport=transport,
+        ) as valve_client:
+            response = valve_client.get(VALVE_HERO_LIST_URL, params={"language": "schinese"})
+    except httpx.RequestError as error:
+        raise LeagueCollectionError(f"Valve hero list request failed: {error}") from error
+    if response.status_code >= 400:
+        raise LeagueCollectionError(f"Valve hero list returned {response.status_code}")
+    try:
+        payload = response.json()
+    except ValueError as error:
+        raise LeagueCollectionError("Valve hero list returned invalid JSON") from error
+
+    result = payload.get("result") if isinstance(payload, dict) else None
+    data = result.get("data") if isinstance(result, dict) else None
+    rows = data.get("heroes") if isinstance(data, dict) else None
+    if not isinstance(rows, list):
+        raise LeagueCollectionError("Valve hero list has no result.data.heroes array")
+
+    heroes: dict[int, dict[str, str]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        hero_id = _hero_id(row.get("id"))
+        if hero_id is None:
+            continue
+        entry = {
+            "zh": str(row.get("name_loc") or "").strip(),
+            "en": str(row.get("name_english_loc") or "").strip(),
+            "slug": _hero_slug(row.get("name")),
+        }
+        if any(entry.values()):
+            heroes[hero_id] = entry
+    if not heroes:
+        raise LeagueCollectionError("Valve hero list carried no usable hero names")
+    return heroes
+
+
+def build_hero_names(
+    opendota_rows: Any,
+    valve_heroes: dict[int, dict[str, str]],
+) -> dict[str, dict[str, str]]:
+    """Merge the id list from OpenDota with Valve's Chinese names.
+
+    OpenDota is the canonical id list and English name; a hero Valve has not
+    translated yet just repeats its English name in `zh` so the board never has
+    to guess. Keys stay in numeric order so a rebuild does not shuffle the diff.
+    """
+    rows = opendota_rows if isinstance(opendota_rows, list) else []
+    heroes: dict[str, dict[str, str]] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        hero_id = _hero_id(row.get("id"))
+        if hero_id is None:
+            continue
+        extra = valve_heroes.get(hero_id, {})
+        english = str(row.get("localized_name") or "").strip() or extra.get("en", "")
+        chinese = extra.get("zh", "") or english
+        entry = {
+            "zh": chinese,
+            "en": english,
+            "slug": _hero_slug(row.get("name")) or extra.get("slug", ""),
+        }
+        if entry["zh"] or entry["en"]:
+            heroes[str(hero_id)] = entry
+
+    # A brand new hero can reach one feed before the other, so keep either side.
+    for hero_id, extra in valve_heroes.items():
+        if str(hero_id) in heroes:
+            continue
+        english = extra.get("en") or extra.get("zh", "")
+        heroes[str(hero_id)] = {
+            "zh": extra.get("zh") or english,
+            "en": english,
+            "slug": extra.get("slug", ""),
+        }
+    return {key: heroes[key] for key in sorted(heroes, key=lambda item: int(item))}
+
+
+def collect_hero_names(
+    *,
+    client: OpenDotaLeagueClient,
+    transport: httpx.BaseTransport | None = None,
+) -> tuple[dict[str, dict[str, str]], str]:
+    """Build the hero_id -> names mapping, degrading instead of failing.
+
+    A hero table is a nicety: no Chinese names is a uglier board, not a broken
+    one. So Valve's datafeed failing falls back to English names, and both feeds
+    failing returns an empty mapping for the caller to treat as "leave the file
+    that is already on disk alone".
+    """
+    valve_error = ""
+    try:
+        valve_heroes = fetch_valve_hero_names(transport=transport)
+    except LeagueCollectionError as error:
+        valve_heroes, valve_error = {}, str(error)
+
+    opendota_rows: Any = None
+    opendota_error = ""
+    try:
+        opendota_rows = client.get_json("/heroes")
+    except LeagueCollectionError as error:
+        opendota_error = str(error)
+    if not isinstance(opendota_rows, list):
+        opendota_rows, opendota_error = None, opendota_error or "OpenDota /heroes returned no list"
+
+    if opendota_error and valve_error:
+        return {}, f"hero list unavailable ({opendota_error}; {valve_error}), kept existing names"
+
+    heroes = build_hero_names(opendota_rows, valve_heroes)
+    if not heroes:
+        return {}, "hero list came back empty, kept existing names"
+    if valve_error:
+        return heroes, f"Valve names unavailable ({valve_error}), using English names"
+    return heroes, ""
+
+
+def write_hero_names(path: Path, heroes: dict[str, dict[str, str]]) -> bool:
+    payload = json.dumps(heroes, ensure_ascii=False, indent=2) + "\n"
+    if path.exists() and path.read_text(encoding="utf-8") == payload:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_text(payload, encoding="utf-8")
+    temporary.replace(path)
+    return True
+
+
+def refresh_hero_names(
+    *,
+    config: dict[str, Any],
+    client: OpenDotaLeagueClient,
+    transport: httpx.BaseTransport | None = None,
+) -> tuple[Path, int, str]:
+    """Refresh the hero_id -> 中文名 mapping the board labels heroes with.
+
+    Returns (path, entries, note). Neither feed answering leaves the file on disk
+    untouched, so a flaky upstream never blanks the names the board already has.
+    """
+    path = Path(config.get("heroes_file") or DEFAULT_HEROES_FILE)
+    heroes, note = collect_hero_names(client=client, transport=transport)
+    if not heroes:
+        return path, len(load_hero_cache(path)), note
+    write_hero_names(path, heroes)
+    return path, len(heroes), note
 
 
 def read_manual_match_ids(path: Path, *, require_non_empty: bool = True) -> list[int]:
@@ -1134,6 +1338,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Do not fetch Steam avatars for the players in this snapshot",
     )
     parser.add_argument(
+        "--skip-heroes",
+        action="store_true",
+        help="Do not refresh the hero id -> name mapping used by the board",
+    )
+    parser.add_argument(
         "--max-paid-calls",
         type=int,
         default=int(os.getenv("OPENDOTA_MAX_PAID_CALLS", "250")),
@@ -1217,6 +1426,14 @@ def main(argv: list[str] | None = None) -> int:
             )
             avatar_line = f"{avatar_total} avatars cached ({avatar_new} new) in {avatar_path}"
 
+        if args.skip_heroes:
+            hero_line = "heroes skipped"
+        else:
+            hero_path, hero_total, hero_note = refresh_hero_names(config=config, client=client)
+            hero_line = f"{hero_total} hero names in {hero_path}"
+            if hero_note:
+                hero_line = f"{hero_line} ({hero_note})"
+
     # Compare against the file on disk before overwriting it.
     payload = _stable_snapshot_timestamp(config["output"], payload)
     write_snapshot(config["output"], payload)
@@ -1236,6 +1453,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{metadata['paid_calls']} paid calls)"
     )
     print(avatar_line)
+    print(hero_line)
     return 0
 
 

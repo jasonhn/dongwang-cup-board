@@ -19,6 +19,10 @@ const elements = {
   coverageNotice: document.querySelector("#coverageNotice"),
   statsBody: document.querySelector("#statsBody"),
   statsEmpty: document.querySelector("#statsEmpty"),
+  matchList: document.querySelector("#matchList"),
+  archiveEmpty: document.querySelector("#archiveEmpty"),
+  archiveCount: document.querySelector("#archiveCount"),
+  archiveToggleAll: document.querySelector("#archiveToggleAll"),
   partnerDialog: document.querySelector("#partnerDialog"),
   partnerAvatar: document.querySelector("#partnerAvatar"),
   partnerName: document.querySelector("#partnerName"),
@@ -42,6 +46,7 @@ const elements = {
 const state = {
   data: null,
   avatars: {},
+  heroes: {},
   byId: new Map(),
   teamById: new Map(),
   partnerRows: [],
@@ -235,6 +240,30 @@ async function loadAvatars() {
     );
   } catch {
     // Avatars are decorative: a missing file must never break the board.
+    return {};
+  }
+}
+
+// 英雄名由 collector.py 写进 site/data/heroes.json（hero_id -> {zh, en, slug}）。
+// 拉不到就退化成只显示 hero_id，战报存档本身不该因为这个空掉。
+async function loadHeroes() {
+  try {
+    const response = await fetch("./data/heroes.json", { cache: "no-store" });
+    if (!response.ok) return {};
+    const raw = await response.json();
+    const table = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const cleaned = {};
+    for (const [key, value] of Object.entries(table)) {
+      const id = Number(key);
+      if (!Number.isInteger(id) || id <= 0 || !value || typeof value !== "object") continue;
+      cleaned[id] = {
+        zh: typeof value.zh === "string" ? value.zh : "",
+        en: typeof value.en === "string" ? value.en : "",
+        slug: typeof value.slug === "string" && /^[a-z0-9_]+$/i.test(value.slug) ? value.slug : "",
+      };
+    }
+    return cleaned;
+  } catch {
     return {};
   }
 }
@@ -562,6 +591,261 @@ function bindPartnerDialog() {
   updateSortMarks();
 }
 
+// —— 战报存档：一行一场比赛，点三角形展开该局详情 ——
+
+const GAME_MODE_LABELS = {
+  1: "全英雄选择",
+  2: "队长模式",
+  3: "随机选择",
+  4: "单选模式",
+  5: "全随机",
+  21: "1v1 中路",
+  22: "加速模式",
+};
+
+const HERO_ICON_BASE =
+  "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/";
+
+function formatDuration(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  return `${Math.floor(total / 60)}分${String(total % 60).padStart(2, "0")}秒`;
+}
+
+function gameModeLabel(mode) {
+  return GAME_MODE_LABELS[Number(mode)] || `模式 ${mode ?? "未知"}`;
+}
+
+function isRadiantSide(player) {
+  return Number(player.player_slot) < 128;
+}
+
+function makeHeroCell(heroId) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "hero-cell";
+  const hero = state.heroes[Number(heroId)];
+  if (hero && hero.slug) {
+    const image = document.createElement("img");
+    image.className = "hero-icon";
+    image.src = `${HERO_ICON_BASE}${hero.slug}.png?`;
+    image.alt = "";
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.addEventListener("error", () => image.remove(), { once: true });
+    wrapper.append(image);
+  }
+  const name = document.createElement("span");
+  name.className = "hero-name";
+  name.textContent = hero ? hero.zh || hero.en || `英雄 ${heroId}` : `#${heroId ?? "?"}`;
+  wrapper.append(name);
+  return wrapper;
+}
+
+function makeRosterBlock(match, radiant) {
+  const block = document.createElement("div");
+  block.className = `team-block ${radiant ? "team-radiant" : "team-dire"}`;
+
+  const won = match.radiant_win === radiant;
+  block.classList.add(won ? "is-win" : "is-loss");
+
+  const head = document.createElement("div");
+  head.className = "team-head";
+  const title = document.createElement("strong");
+  title.textContent = radiant ? "天辉" : "夜魇";
+  const result = document.createElement("span");
+  result.className = `team-result ${won ? "is-win" : "is-loss"}`;
+  result.textContent = won ? "胜" : "负";
+  head.append(title, result);
+  block.append(head);
+
+  const table = document.createElement("table");
+  table.className = "roster-table";
+  const headRow = document.createElement("tr");
+  for (const label of ["玩家", "Account ID", "英雄"]) {
+    const cell = document.createElement("th");
+    cell.textContent = label;
+    headRow.append(cell);
+  }
+  const tableHead = document.createElement("thead");
+  tableHead.append(headRow);
+  const body = document.createElement("tbody");
+
+  const players = (match.players || []).filter(
+    (player) => isRadiantSide(player) === radiant,
+  );
+  if (!players.length) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 3;
+    cell.className = "roster-empty";
+    cell.textContent = "这一边的选手位没有公开记录";
+    row.append(cell);
+    body.append(row);
+  }
+  for (const player of players) {
+    const known = Number.isFinite(Number(player.account_id));
+    const account = known ? Number(player.account_id) : null;
+    const name =
+      player.display_name || player.personaname || (known ? `Account ${account}` : "匿名选手");
+    const row = document.createElement("tr");
+
+    const playerCell = document.createElement("td");
+    const playerBox = document.createElement("div");
+    playerBox.className = "player-cell";
+    playerBox.append(
+      known ? makeAvatar({ accountId: account, name }) : makeAvatarFallback({ name }),
+    );
+    const label = document.createElement("span");
+    label.className = "player-label";
+    label.textContent = name;
+    playerBox.append(label);
+    playerCell.append(playerBox);
+
+    row.append(
+      playerCell,
+      makeCell("td", account === null ? "—" : String(account), "account-id"),
+    );
+    const heroCell = document.createElement("td");
+    heroCell.append(makeHeroCell(player.hero_id));
+    row.append(heroCell);
+    body.append(row);
+  }
+
+  table.append(tableHead, body);
+  block.append(table);
+  return block;
+}
+
+function makeMatchDetail(match, detailId, labelledBy) {
+  const detail = document.createElement("div");
+  detail.className = "match-detail";
+  detail.id = detailId;
+  detail.hidden = true;
+  detail.setAttribute("role", "region");
+  detail.setAttribute("aria-labelledby", labelledBy);
+
+  const facts = document.createElement("div");
+  facts.className = "match-facts";
+  const entries = [
+    ["开始时间", formatLocal(match.start_time)],
+    ["结束时间", formatLocal(Number(match.start_time) + Number(match.duration || 0))],
+    ["时长", formatDuration(match.duration)],
+    ["赛制", gameModeLabel(match.game_mode)],
+  ];
+  for (const [label, value] of entries) {
+    const fact = document.createElement("div");
+    fact.className = "fact";
+    const caption = document.createElement("span");
+    caption.textContent = label;
+    const strong = document.createElement("strong");
+    strong.textContent = value;
+    fact.append(caption, strong);
+    facts.append(fact);
+  }
+  const idFact = document.createElement("div");
+  idFact.className = "fact";
+  const idCaption = document.createElement("span");
+  idCaption.textContent = "比赛 ID";
+  const idLink = document.createElement("a");
+  idLink.className = "match-link";
+  idLink.href = `https://www.opendota.com/matches/${match.match_id}`;
+  idLink.target = "_blank";
+  idLink.rel = "noreferrer noopener";
+  idLink.textContent = `${match.match_id} ↗`;
+  idFact.append(idCaption, idLink);
+  facts.append(idFact);
+  detail.append(facts);
+
+  const teams = document.createElement("div");
+  teams.className = "team-columns";
+  teams.append(makeRosterBlock(match, true), makeRosterBlock(match, false));
+  detail.append(teams);
+  return detail;
+}
+
+function makeMatchItem(match) {
+  const id = String(match.match_id);
+  const item = document.createElement("article");
+  item.className = "match-item";
+
+  const detailId = `match-detail-${id}`;
+  const toggleId = `match-toggle-${id}`;
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "match-toggle";
+  toggle.id = toggleId;
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.setAttribute("aria-controls", detailId);
+
+  const caret = document.createElement("span");
+  caret.className = "match-caret";
+  caret.setAttribute("aria-hidden", "true");
+
+  const time = document.createElement("span");
+  time.className = "match-time";
+  time.textContent = formatLocal(match.start_time);
+
+  const idLabel = document.createElement("span");
+  idLabel.className = "match-id";
+  idLabel.textContent = `#${id}`;
+
+  const meta = document.createElement("span");
+  meta.className = "match-row-meta";
+  const winner = document.createElement("span");
+  winner.className = `match-winner ${match.radiant_win ? "win-radiant" : "win-dire"}`;
+  winner.textContent = match.radiant_win ? "天辉胜" : "夜魇胜";
+  const duration = document.createElement("span");
+  duration.className = "match-duration";
+  duration.textContent = formatDuration(match.duration);
+  meta.append(winner, duration);
+
+  toggle.append(caret, time, idLabel, meta);
+  item.append(toggle, makeMatchDetail(match, detailId, toggleId));
+  return item;
+}
+
+function setMatchExpanded(toggle, expanded) {
+  toggle.setAttribute("aria-expanded", String(expanded));
+  const detail = document.getElementById(toggle.getAttribute("aria-controls"));
+  if (detail) detail.hidden = !expanded;
+}
+
+function syncToggleAllLabel() {
+  const button = elements.archiveToggleAll;
+  if (!button) return;
+  const toggles = [...elements.matchList.querySelectorAll(".match-toggle")];
+  const allOpen = toggles.length > 0 && toggles.every((one) => one.getAttribute("aria-expanded") === "true");
+  button.textContent = allOpen ? "收起全部" : "展开全部";
+  button.dataset.mode = allOpen ? "collapse" : "expand";
+}
+
+function renderArchive(matches) {
+  if (!elements.matchList) return;
+  const ordered = [...matches].sort((a, b) => Number(b.start_time) - Number(a.start_time));
+  elements.matchList.replaceChildren(...ordered.map(makeMatchItem));
+  elements.archiveEmpty.hidden = ordered.length > 0;
+  elements.archiveCount.textContent = `${ordered.length} 场`;
+  syncToggleAllLabel();
+}
+
+function bindArchive() {
+  if (!elements.matchList) return;
+  elements.matchList.addEventListener("click", (event) => {
+    const toggle = event.target.closest(".match-toggle");
+    if (!toggle || !elements.matchList.contains(toggle)) return;
+    setMatchExpanded(toggle, toggle.getAttribute("aria-expanded") !== "true");
+    syncToggleAllLabel();
+  });
+  if (elements.archiveToggleAll) {
+    elements.archiveToggleAll.addEventListener("click", () => {
+      const expand = elements.archiveToggleAll.dataset.mode === "expand";
+      for (const toggle of elements.matchList.querySelectorAll(".match-toggle")) {
+        setMatchExpanded(toggle, expand);
+      }
+      syncToggleAllLabel();
+    });
+  }
+}
+
 function render() {
   if (!state.data) return;
   const matches = state.data.matches.filter(
@@ -574,6 +858,7 @@ function render() {
   elements.playerCount.textContent = String(players.length);
   elements.rangeDays.textContent = String(Math.max(1, Math.ceil((state.to - state.from) / DAY_SECONDS)));
   renderStats(players, teamById);
+  renderArchive(matches);
 }
 
 function showCoverageNotice(data) {
@@ -649,19 +934,22 @@ function showEmptySnapshot(data) {
     "已经打过的普通房间可以把 match_id 写进 matches.txt，并把 config.json 的 collect_mode 改成 manual。";
   elements.coverageNotice.hidden = false;
   elements.statsEmpty.hidden = false;
+  if (elements.archiveEmpty) elements.archiveEmpty.hidden = false;
 }
 
 async function load() {
   try {
-    const [response, avatars] = await Promise.all([
+    const [response, avatars, heroes] = await Promise.all([
       fetch("./data/league.json", { cache: "no-store" }),
       loadAvatars(),
+      loadHeroes(),
     ]);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
     setTimeZone(data.time_zone);
     state.data = data;
     state.avatars = avatars;
+    state.heroes = heroes;
     applyBranding(data);
     if (!Array.isArray(data.matches) || data.matches.length === 0) {
       showEmptySnapshot(data);
@@ -732,4 +1020,5 @@ async function load() {
 }
 
 bindPartnerDialog();
+bindArchive();
 load();

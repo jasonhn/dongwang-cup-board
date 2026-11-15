@@ -10,8 +10,8 @@
     />
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20261111-5" />
-    <script src="./app.js?v=20261111-5" type="module"></script>
+    <link rel="stylesheet" href="./styles.css?v=20261116-1" />
+    <script src="./app.js?v=20261116-1" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -147,6 +147,28 @@
           </table>
         </div>
         <div class="empty-state" id="statsEmpty" hidden>
+          <span>空</span>
+          <p>这个时间段没有比赛，换一个范围再看看。</p>
+        </div>
+      </section>
+
+      <section class="panel matches-panel" aria-labelledby="archiveTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">战报存档</p>
+            <h2 id="archiveTitle">全部比赛</h2>
+          </div>
+          <p class="panel-caption">
+            按时间倒序列出已收录的每一场内战。点一行的三角形可以展开该局的天辉／夜魇阵容、英雄与胜负。<br />
+            列表跟随上方的时间筛选；比赛 ID 那一栏的“详细战报”会打开 OpenDota 的原页。
+          </p>
+        </div>
+        <div class="archive-toolbar">
+          <span class="archive-count" id="archiveCount">0 场</span>
+          <button type="button" class="archive-expand" id="archiveToggleAll" data-mode="expand">展开全部</button>
+        </div>
+        <div class="match-list" id="matchList"></div>
+        <div class="empty-state" id="archiveEmpty" hidden>
           <span>空</span>
           <p>这个时间段没有比赛，换一个范围再看看。</p>
         </div>

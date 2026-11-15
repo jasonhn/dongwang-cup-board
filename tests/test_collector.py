@@ -23,6 +23,7 @@ from collector import append_manual_match_ids
 from collector import load_match_overrides
 from collector import SteamMatchClient
 from collector import account_ids_in_snapshot, load_avatar_cache, refresh_avatars
+from collector import load_hero_cache, refresh_hero_names, write_hero_names
 
 
 def make_match(match_id: int, *, league_id: int = 19224) -> dict[str, Any]:
@@ -430,6 +431,155 @@ def test_load_config_rejects_non_numeric_avatar_budget(tmp_path: Path) -> None:
         assert "max_new_avatars" in str(error)
     else:
         raise AssertionError("expected LeagueCollectionError")
+
+
+class HeroClient:
+    """Serves /heroes the way OpenDota does, or fails like a throttled API would."""
+
+    paid_calls = 0
+    free_exhausted = False
+
+    def __init__(self, rows: Any = None, *, error: str | None = None) -> None:
+        self.rows = rows
+        self.error = error
+        self.requested: list[str] = []
+
+    def get_json(self, path: str) -> Any:
+        self.requested.append(path)
+        if self.error:
+            raise LeagueCollectionError(self.error)
+        return self.rows
+
+
+def valve_transport(payload: Any, *, status: int = 200) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/datafeed/herolist"
+        assert request.url.params["language"] == "schinese"
+        return httpx.Response(status, json=payload)
+
+    return httpx.MockTransport(handler)
+
+
+def broken_valve_transport() -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    return httpx.MockTransport(handler)
+
+
+def opendota_hero_rows() -> list[dict[str, Any]]:
+    return [
+        {"id": 1, "name": "npc_dota_hero_antimage", "localized_name": "Anti-Mage"},
+        {"id": 11, "name": "npc_dota_hero_shadow_fiend", "localized_name": "Shadow Fiend"},
+        {"id": 23, "name": "npc_dota_hero_drow_ranger", "localized_name": "Drow Ranger"},
+    ]
+
+
+def valve_hero_payload() -> dict[str, Any]:
+    """Valve's datafeed shape, missing Drow Ranger to mirror a lagging translation."""
+    return {
+        "result": {
+            "data": {
+                "heroes": [
+                    {
+                        "id": 1,
+                        "name": "npc_dota_hero_antimage",
+                        "name_loc": "敌法师",
+                        "name_english_loc": "Anti-Mage",
+                    },
+                    {
+                        "id": 11,
+                        "name": "npc_dota_hero_shadow_fiend",
+                        "name_loc": "影魔",
+                        "name_english_loc": "Shadow Fiend",
+                    },
+                ]
+            }
+        }
+    }
+
+
+def hero_config(tmp_path: Path, **overrides: Any) -> dict[str, Any]:
+    return {
+        **DEFAULT_CONFIG,
+        "heroes_file": str(tmp_path / "heroes.json"),
+        **overrides,
+    }
+
+
+def test_refresh_hero_names_writes_chinese_mapping(tmp_path: Path) -> None:
+    client = HeroClient(opendota_hero_rows())
+
+    path, total, note = refresh_hero_names(
+        config=hero_config(tmp_path),
+        client=client,  # type: ignore[arg-type]
+        transport=valve_transport(valve_hero_payload()),
+    )
+
+    mapping = json.loads(path.read_text(encoding="utf-8"))
+    assert note == ""
+    assert total == 3
+    assert client.requested == ["/heroes"]
+    assert mapping["1"] == {"zh": "敌法师", "en": "Anti-Mage", "slug": "antimage"}
+    assert mapping["11"]["zh"] == "影魔"
+    # A hero Valve has not translated yet falls back to its English name.
+    assert mapping["23"] == {"zh": "Drow Ranger", "en": "Drow Ranger", "slug": "drow_ranger"}
+    # Numeric key order keeps a rebuild from shuffling the committed file.
+    assert list(mapping) == ["1", "11", "23"]
+    assert load_hero_cache(path) == mapping
+
+
+def test_refresh_hero_names_falls_back_to_english_when_valve_fails(tmp_path: Path) -> None:
+    client = HeroClient(opendota_hero_rows())
+
+    path, total, note = refresh_hero_names(
+        config=hero_config(tmp_path),
+        client=client,  # type: ignore[arg-type]
+        transport=broken_valve_transport(),
+    )
+
+    mapping = json.loads(path.read_text(encoding="utf-8"))
+    assert "Valve names unavailable" in note
+    assert total == 3
+    assert mapping["1"] == {"zh": "Anti-Mage", "en": "Anti-Mage", "slug": "antimage"}
+    assert mapping["11"]["zh"] == "Shadow Fiend"
+
+
+def test_refresh_hero_names_keeps_the_file_when_both_feeds_fail(tmp_path: Path) -> None:
+    path = tmp_path / "heroes.json"
+    write_hero_names(path, {"1": {"zh": "敌法师", "en": "Anti-Mage", "slug": "antimage"}})
+    before = path.read_text(encoding="utf-8")
+    client = HeroClient(error="OpenDota returned 504 for /heroes")
+
+    written_path, total, note = refresh_hero_names(
+        config=hero_config(tmp_path),
+        client=client,  # type: ignore[arg-type]
+        transport=valve_transport({"error": "upstream failed"}, status=503),
+    )
+
+    assert written_path == path
+    assert path.read_text(encoding="utf-8") == before
+    assert total == 1
+    assert "kept existing names" in note
+
+
+def test_hero_names_only_rewritten_when_they_change(tmp_path: Path) -> None:
+    path = tmp_path / "heroes.json"
+    heroes = {"1": {"zh": "敌法师", "en": "Anti-Mage", "slug": "antimage"}}
+
+    assert write_hero_names(path, heroes) is True
+    assert write_hero_names(path, heroes) is False
+    changed = {**heroes, "2": {"zh": "亚巴顿", "en": "Abaddon", "slug": "abaddon"}}
+    assert write_hero_names(path, changed) is True
+
+
+def test_load_config_defaults_hero_file(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"league_id": 42}), encoding="utf-8")
+
+    config = load_config(path)
+
+    assert config["heroes_file"] == "site/data/heroes.json"
 
 
 def steam_transport(pages: list[list[int]]) -> httpx.MockTransport:

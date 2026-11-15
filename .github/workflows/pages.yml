@@ -63,13 +63,14 @@ jobs:
         run: |
           output_path=$(python -c "import json;print(json.load(open('config.json'))['output'])")
           avatars_path=$(python -c "import json;print(json.load(open('config.json')).get('avatars_file','site/data/avatars.json'))")
-          if [ -z "$(git status --porcelain -- "$output_path" "$avatars_path")" ]; then
+          heroes_path=$(python -c "import json;print(json.load(open('config.json')).get('heroes_file','site/data/heroes.json'))")
+          if [ -z "$(git status --porcelain -- "$output_path" "$avatars_path" "$heroes_path")" ]; then
             echo "Dashboard data is unchanged."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "$output_path" "$avatars_path"
+          git add -- "$output_path" "$avatars_path" "$heroes_path"
           git commit -m "Refresh league dashboard data"
           git push
 
