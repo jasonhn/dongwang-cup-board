@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-15T00:19:00.059489+00:00",
+  "generated_at_utc": "2026-11-15T14:28:01.603366+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 13,
-    "matches_available": 12,
+    "match_ids_returned": 14,
+    "matches_available": 13,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -991,6 +991,86 @@
           "display_name": null,
           "player_slot": 132,
           "hero_id": 101
+        }
+      ]
+    },
+    {
+      "match_id": 9091312544,
+      "league_id": 19905,
+      "start_time": 1794744646,
+      "duration": 2774,
+      "radiant_win": false,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 175574734,
+          "personaname": "曹达华",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 20
+        },
+        {
+          "account_id": 1362249826,
+          "personaname": "小林直玄",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 53
+        },
+        {
+          "account_id": 136480670,
+          "personaname": "阳顶天",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 51
+        },
+        {
+          "account_id": 141249204,
+          "personaname": "g",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 69
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 106
+        },
+        {
+          "account_id": 144793612,
+          "personaname": "Risk-Cat",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 31
+        },
+        {
+          "account_id": 140597433,
+          "personaname": "Hi",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 98
+        },
+        {
+          "account_id": 140485070,
+          "personaname": "JJ",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 103
+        },
+        {
+          "account_id": 362337144,
+          "personaname": "qinge09",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 1
+        },
+        {
+          "account_id": 129770707,
+          "personaname": "给我狠狠地打",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 17
         }
       ]
     }
