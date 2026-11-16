@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-16T07:42:50.597877+00:00",
+  "generated_at_utc": "2026-11-16T20:59:59.328478+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 16,
-    "matches_available": 15,
+    "match_ids_returned": 19,
+    "matches_available": 18,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -1681,6 +1681,336 @@
           "kills": 16,
           "deaths": 2,
           "assists": 32
+        }
+      ]
+    },
+    {
+      "match_id": 9092676306,
+      "league_id": 19905,
+      "start_time": 1794829682,
+      "duration": 2717,
+      "radiant_win": false,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 274396072,
+          "personaname": "LondonBoy",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 145,
+          "kills": 5,
+          "deaths": 10,
+          "assists": 12
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 53,
+          "kills": 15,
+          "deaths": 6,
+          "assists": 9
+        },
+        {
+          "account_id": 230949098,
+          "personaname": "HeJJ",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 86,
+          "kills": 8,
+          "deaths": 10,
+          "assists": 15
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 42,
+          "kills": 5,
+          "deaths": 7,
+          "assists": 16
+        },
+        {
+          "account_id": 769983733,
+          "personaname": "青雉。",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 84,
+          "kills": 1,
+          "deaths": 16,
+          "assists": 17
+        },
+        {
+          "account_id": 175574734,
+          "personaname": "曹达华",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 8,
+          "kills": 10,
+          "deaths": 5,
+          "assists": 14
+        },
+        {
+          "account_id": 1362249826,
+          "personaname": "小林直玄",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 9,
+          "kills": 13,
+          "deaths": 7,
+          "assists": 29
+        },
+        {
+          "account_id": 145165864,
+          "personaname": "三楼贵宾一位",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 35,
+          "kills": 11,
+          "deaths": 7,
+          "assists": 19
+        },
+        {
+          "account_id": 144793612,
+          "personaname": "Risk-Cat",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 27,
+          "kills": 3,
+          "deaths": 9,
+          "assists": 35
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 78,
+          "kills": 12,
+          "deaths": 7,
+          "assists": 30
+        }
+      ]
+    },
+    {
+      "match_id": 9092750955,
+      "league_id": 19905,
+      "start_time": 1794833469,
+      "duration": 2274,
+      "radiant_win": false,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 26,
+          "kills": 1,
+          "deaths": 12,
+          "assists": 17
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 78,
+          "kills": 12,
+          "deaths": 5,
+          "assists": 17
+        },
+        {
+          "account_id": 1682266551,
+          "personaname": "飞花令",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 105,
+          "kills": 4,
+          "deaths": 10,
+          "assists": 16
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 138,
+          "kills": 10,
+          "deaths": 4,
+          "assists": 15
+        },
+        {
+          "account_id": 145165864,
+          "personaname": "三楼贵宾一位",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 39,
+          "kills": 6,
+          "deaths": 8,
+          "assists": 18
+        },
+        {
+          "account_id": 144793612,
+          "personaname": "Risk-Cat",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 27,
+          "kills": 2,
+          "deaths": 7,
+          "assists": 26
+        },
+        {
+          "account_id": 1362249826,
+          "personaname": "小林直玄",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 43,
+          "kills": 12,
+          "deaths": 3,
+          "assists": 14
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 36,
+          "kills": 11,
+          "deaths": 7,
+          "assists": 16
+        },
+        {
+          "account_id": 769983733,
+          "personaname": "青雉。",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 84,
+          "kills": 3,
+          "deaths": 9,
+          "assists": 19
+        },
+        {
+          "account_id": 175574734,
+          "personaname": "曹达华",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 69,
+          "kills": 10,
+          "deaths": 8,
+          "assists": 16
+        }
+      ]
+    },
+    {
+      "match_id": 9092823962,
+      "league_id": 19905,
+      "start_time": 1794836671,
+      "duration": 2295,
+      "radiant_win": true,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 1682266551,
+          "personaname": "飞花令",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 26,
+          "kills": 26,
+          "deaths": 7,
+          "assists": 10
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 53,
+          "kills": 8,
+          "deaths": 9,
+          "assists": 27
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 15,
+          "kills": 4,
+          "deaths": 9,
+          "assists": 26
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 1,
+          "kills": 12,
+          "deaths": 1,
+          "assists": 13
+        },
+        {
+          "account_id": 1303059558,
+          "personaname": "loony-丶-",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 123,
+          "kills": 6,
+          "deaths": 5,
+          "assists": 26
+        },
+        {
+          "account_id": 144793612,
+          "personaname": "Risk-Cat",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 31,
+          "kills": 0,
+          "deaths": 16,
+          "assists": 12
+        },
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 6,
+          "kills": 8,
+          "deaths": 9,
+          "assists": 8
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 78,
+          "kills": 9,
+          "deaths": 10,
+          "assists": 16
+        },
+        {
+          "account_id": 145165864,
+          "personaname": "三楼贵宾一位",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 32,
+          "kills": 9,
+          "deaths": 13,
+          "assists": 10
+        },
+        {
+          "account_id": 175574734,
+          "personaname": "曹达华",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 98,
+          "kills": 5,
+          "deaths": 8,
+          "assists": 6
         }
       ]
     }
