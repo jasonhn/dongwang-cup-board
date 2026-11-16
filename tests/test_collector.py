@@ -39,6 +39,9 @@ def make_match(match_id: int, *, league_id: int = 19224) -> dict[str, Any]:
                 "personaname": f"Player {slot}",
                 "player_slot": slot if slot < 5 else 123 + slot,
                 "hero_id": slot + 1,
+                "kills": 5 + slot,
+                "deaths": 3 + slot % 4,
+                "assists": 8 + slot,
             }
             for slot in range(10)
         ],
@@ -65,6 +68,81 @@ def test_normalise_match_keeps_active_roster() -> None:
     assert match["radiant_win"] is True
     assert len(match["players"]) == 10
     assert match["players"][5]["player_slot"] == 128
+
+
+def test_normalise_match_keeps_kda() -> None:
+    raw = make_match(1)
+    raw["players"][0].update({"kills": 9, "deaths": 10, "assists": 15})
+
+    match = normalise_match(raw, 19224)
+
+    first = match["players"][0]
+    assert (first["kills"], first["deaths"], first["assists"]) == (9, 10, 15)
+
+
+def test_normalise_match_keeps_missing_kda_as_none() -> None:
+    raw = make_match(1)
+    for field in ("kills", "deaths", "assists"):
+        del raw["players"][0][field]
+    raw["players"][1]["deaths"] = None
+
+    match = normalise_match(raw, 19224)
+
+    assert match["players"][0]["kills"] is None
+    assert match["players"][0]["deaths"] is None
+    assert match["players"][0]["assists"] is None
+    # A 0 kill game stays 0, it is not the same as "we never got that number".
+    raw["players"][1]["deaths"] = 0
+    assert normalise_match(raw, 19224)["players"][1]["deaths"] == 0
+
+
+def test_collector_backfills_kda_for_old_snapshots(tmp_path: Path) -> None:
+    """Snapshots written before the KDA column get one refetch, then are left alone."""
+    output = tmp_path / "league.json"
+    legacy = normalise_match(make_match(1), 19224)
+    for player in legacy["players"]:
+        for field in ("kills", "deaths", "assists"):
+            del player[field]
+    write_snapshot(output, {"league_id": 19224, "matches": [legacy]})
+
+    client = FakeClient(
+        {
+            "/leagues/19224": {"name": "Test League"},
+            "/leagues/19224/matchIds": [1, 2],
+            "/matches/1": make_match(1),
+            "/matches/2": make_match(2),
+        }
+    )
+    payload = collect_league_data(
+        league_id=19224,
+        output_path=output,
+        refresh_recent=1,
+        client=client,  # type: ignore[arg-type]
+    )
+
+    assert "/matches/1" in client.requested
+    first = payload["matches"][0]["players"][0]
+    assert (first["kills"], first["deaths"], first["assists"]) == (5, 3, 8)
+    write_snapshot(output, payload)
+
+    # Second run: match 1 is out of the refresh window and already carries KDA, so it
+    # is served from cache; only the newest match (2) is refetched as usual.
+    cached_client = FakeClient(
+        {
+            "/leagues/19224": {"name": "Test League"},
+            "/leagues/19224/matchIds": [1, 2],
+            "/matches/2": make_match(2),
+        }
+    )
+    again = collect_league_data(
+        league_id=19224,
+        output_path=output,
+        refresh_recent=1,
+        client=cached_client,  # type: ignore[arg-type]
+    )
+
+    assert "/matches/1" not in cached_client.requested
+    assert again["matches"][0]["players"][0]["kills"] == 5
 
 
 def test_collector_reuses_old_matches_and_refreshes_recent(tmp_path: Path) -> None:
@@ -563,6 +641,38 @@ def test_refresh_hero_names_keeps_the_file_when_both_feeds_fail(tmp_path: Path) 
     assert "kept existing names" in note
 
 
+def test_refresh_hero_names_keeps_cached_chinese_when_valve_is_flaky(
+    tmp_path: Path,
+) -> None:
+    """A Valve outage must not trade every translated name for its English fallback."""
+    path = tmp_path / "heroes.json"
+    write_hero_names(
+        path,
+        {
+            "1": {"zh": "敌法师", "en": "Anti-Mage", "slug": "antimage"},
+            "11": {"zh": "影魔", "en": "Shadow Fiend", "slug": "stale_from_last_run"},
+            "23": {"zh": "Drow Ranger", "en": "Drow Ranger", "slug": "drow_ranger"},
+        },
+    )
+    client = HeroClient(opendota_hero_rows())
+
+    written_path, total, note = refresh_hero_names(
+        config=hero_config(tmp_path),
+        client=client,  # type: ignore[arg-type]
+        transport=broken_valve_transport(),
+    )
+
+    mapping = json.loads(written_path.read_text(encoding="utf-8"))
+    assert "Valve names unavailable" in note
+    assert total == 3
+    assert mapping["1"]["zh"] == "敌法师"
+    assert mapping["11"]["zh"] == "影魔"
+    # Only the name is rescued; the rest of the entry still comes from this run.
+    assert mapping["11"]["slug"] == "shadow_fiend"
+    # An English name cached as a fallback is not treated as worth keeping.
+    assert mapping["23"] == {"zh": "Drow Ranger", "en": "Drow Ranger", "slug": "drow_ranger"}
+
+
 def test_hero_names_only_rewritten_when_they_change(tmp_path: Path) -> None:
     path = tmp_path / "heroes.json"
     heroes = {"1": {"zh": "敌法师", "en": "Anti-Mage", "slug": "antimage"}}
@@ -794,6 +904,22 @@ def test_overrides_are_read_and_normalised(tmp_path: Path) -> None:
 
 
 def test_missing_or_empty_overrides_file_is_fine(tmp_path: Path) -> None:
+    assert load_match_overrides(tmp_path / "nope.json") == {}
+    empty = tmp_path / "overrides.json"
+    empty.write_text("[]", encoding="utf-8")
+    assert load_match_overrides(empty) == {}
+
+
+def test_override_can_carry_kda(tmp_path: Path) -> None:
+    """Hand-entered 国服 games show the same KDA column, and omitting it stays fine."""
+    entry = make_override_entry()
+    entry["players"][0].update({"kills": 9, "deaths": 10, "assists": 15})
+
+    match = load_match_overrides(write_overrides(tmp_path, [entry]))[9085584594]
+
+    first = match["players"][0]
+    assert (first["kills"], first["deaths"], first["assists"]) == (9, 10, 15)
+    assert match["players"][1]["kills"] is None
     assert load_match_overrides(tmp_path / "nope.json") == {}
     empty = tmp_path / "overrides.json"
     empty.write_text("[]", encoding="utf-8")

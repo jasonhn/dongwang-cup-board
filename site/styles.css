@@ -1526,6 +1526,13 @@ footer p {
   font-size: 0.86rem;
 }
 
+.roster-table .kda {
+  color: var(--red-900);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 @media (max-width: 640px) {
   .match-toggle {
     flex-wrap: wrap;
@@ -1558,6 +1565,19 @@ footer p {
   .roster-table td,
   .roster-table th {
     padding: 7px 9px;
+  }
+
+  .roster-table td {
+    font-size: 0.82rem;
+  }
+
+  .roster-table .kda {
+    font-size: 0.78rem;
+  }
+
+  .hero-icon {
+    width: 26px;
+    height: 15px;
   }
 
   .player-label {

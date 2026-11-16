@@ -640,6 +640,20 @@ function makeHeroCell(heroId) {
   return wrapper;
 }
 
+// OpenDota 给每个选手位都带 kills / deaths / assists；老快照里没有这三个字段时
+// 显示占位符，而不是假的 0/0/0。
+function formatKda(player) {
+  const stats = [player.kills, player.deaths, player.assists].map((value) =>
+    value === null || value === undefined || value === "" ? null : Number(value),
+  );
+  if (stats.some((value) => value === null || !Number.isFinite(value))) return null;
+  const [kills, deaths, assists] = stats;
+  return {
+    text: `${kills}/${deaths}/${assists}`,
+    label: `${kills} 杀 ${deaths} 死 ${assists} 助攻`,
+  };
+}
+
 function makeRosterBlock(match, radiant) {
   const block = document.createElement("div");
   block.className = `team-block ${radiant ? "team-radiant" : "team-dire"}`;
@@ -660,7 +674,7 @@ function makeRosterBlock(match, radiant) {
   const table = document.createElement("table");
   table.className = "roster-table";
   const headRow = document.createElement("tr");
-  for (const label of ["玩家", "Account ID", "英雄"]) {
+  for (const label of ["玩家", "Account ID", "英雄", "KDA"]) {
     const cell = document.createElement("th");
     cell.textContent = label;
     headRow.append(cell);
@@ -675,7 +689,7 @@ function makeRosterBlock(match, radiant) {
   if (!players.length) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 3;
+    cell.colSpan = 4;
     cell.className = "roster-empty";
     cell.textContent = "这一边的选手位没有公开记录";
     row.append(cell);
@@ -707,6 +721,17 @@ function makeRosterBlock(match, radiant) {
     const heroCell = document.createElement("td");
     heroCell.append(makeHeroCell(player.hero_id));
     row.append(heroCell);
+    const kdaCell = document.createElement("td");
+    kdaCell.className = "kda";
+    const kda = formatKda(player);
+    if (kda) {
+      kdaCell.textContent = kda.text;
+      kdaCell.title = kda.label;
+      kdaCell.setAttribute("aria-label", kda.label);
+    } else {
+      kdaCell.textContent = "—";
+    }
+    row.append(kdaCell);
     body.append(row);
   }
 

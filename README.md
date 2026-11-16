@@ -10,7 +10,7 @@
 4. 排名表显示玩家 **Steam 头像**，头像缓存在 `site/data/avatars.json`，抓不到就退化成首字母徽章；
 5. 前三名显示 **冠军 / 亚军 / 季军奖杯**（金、银、铜），不再是数字 1、2、3；
 6. 组队胜率并进同一张玩家表，点 Account ID 弹出队友详情；原来那个几百行几百列的矩阵删掉了，手机上不用左右拖。
-7. 玩家表下面多了一个 **「全部比赛」战报存档**：一行一场（时间 + 比赛 ID），点三角形展开该局的天辉／夜魇阵容、中文英雄名与胜负；英雄名缓存在 `site/data/heroes.json`。
+7. 玩家表下面多了一个 **「全部比赛」战报存档**：一行一场（时间 + 比赛 ID），点三角形展开该局的天辉／夜魇阵容、中文英雄名、每人 KDA（杀/死/助）与胜负；英雄名缓存在 `site/data/heroes.json`。
 
 ## 五分钟落地
 
@@ -191,8 +191,8 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
       "duration": 2400,
       "radiant_win": true,
       "players": [
-        {"account_id": 129964895, "personaname": "Monkey see Monkey do", "player_slot": 0, "hero_id": 47},
-        {"account_id": 335060654, "personaname": "专治不举郭大夫", "player_slot": 1, "hero_id": 96}
+        {"account_id": 129964895, "personaname": "Monkey see Monkey do", "player_slot": 0, "hero_id": 47, "kills": 9, "deaths": 10, "assists": 15},
+        {"account_id": 335060654, "personaname": "专治不举郭大夫", "player_slot": 1, "hero_id": 96, "kills": 3, "deaths": 6, "assists": 21}
       ]
     }
   ]
@@ -200,7 +200,7 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 
 ```
 
-字段说明：`start_time` 是 Unix 秒（北京时间换算成 UTC 秒），`duration` 是秒数，`player_slot` 天辉 0–4、夜魇 128–132，`hero_id` 用 OpenDota 的英雄 ID，`account_id` 用 Steam 64 位 ID 减去 `76561197960141072`。录入 10 名选手即可，缺 `account_id` 的位置会被当作匿名。补录场次会记在 `metadata.manual_override_match_ids` 里，方便核对。
+字段说明：`start_time` 是 Unix 秒（北京时间换算成 UTC 秒），`duration` 是秒数，`player_slot` 天辉 0–4、夜魇 128–132，`hero_id` 用 OpenDota 的英雄 ID，`account_id` 用 Steam 64 位 ID 减去 `76561197960141072`。录入 10 名选手即可，缺 `account_id` 的位置会被当作匿名。`kills` / `deaths` / `assists` 可选，照 APP 里的战绩抄上就能在战报里显示 KDA，不填那一列就是 `—`。补录场次会记在 `metadata.manual_override_match_ids` 里，方便核对。
 
 ## 群昵称映射
 
@@ -233,7 +233,9 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 
 ## 战报存档与英雄名
 
-玩家表下面的「全部比赛」面板列出已收录的每一场内战：一行只显示开始时间 + `match_id`（右边顺带胜负和时长），点行首的三角形展开该局详情——开始／结束时间、时长、赛制、可点开的 OpenDota 原页链接，以及天辉／夜魇两边的玩家、Account ID 和英雄。列表跟随上方的时间筛选，默认「全部战绩」就是全部已收录比赛，倒序排列，右上角还能一键展开／收起。
+玩家表下面的「全部比赛」面板列出已收录的每一场内战：一行只显示开始时间 + `match_id`（右边顺带胜负和时长），点行首的三角形展开该局详情——开始／结束时间、时长、赛制、可点开的 OpenDota 原页链接，以及天辉／夜魇两边的玩家、Account ID、英雄和 KDA。KDA 直接取 OpenDota 每场的 `kills` / `deaths` / `assists`，写成 `9/10/15`（9 杀 10 死 15 助），鼠标悬停能看到完整说明。列表跟随上方的时间筛选，默认「全部战绩」就是全部已收录比赛，倒序排列，右上角还能一键展开／收起。
+
+KDA 是后加的字段，所以老快照里没有这三个数字：采集脚本发现某场的阵容缺 KDA 时会**重新抓一次**那场（每场只补一次，补过之后哪怕拿到的是空值也不会再花额度），下次刷新就把历史比赛的 KDA 全部补齐。确实取不到数字的位置显示 `—`，不会当成 0/0/0。
 
 比赛数据里只有 `hero_id`，中文名由 `collector.py` 写进 `site/data/heroes.json`：
 
@@ -295,7 +297,7 @@ tests/test_collector.py  采集逻辑测试
 
 ## 后续可做的事
 
-- 战报存档再多存几个字段（GPM、击杀/死亡/助攻、KDA、经济差），展开详情里就能直接排一行数据；
+- 战报存档再多存几个字段（GPM、正补/反补、经济差、伤害与承伤），展开详情里就能直接排一行数据；
 - 把 `matches.txt` 的维护交给群机器人：战报 bot 播报战绩时顺手发 `match_id`，你复制粘贴进文件即可；
 - 想做赛季排行榜/MMR，可以按赛季把 `league_id` 分段，或用多个仓库各做一个赛季的看板。
 

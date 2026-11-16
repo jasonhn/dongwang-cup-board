@@ -265,6 +265,21 @@ class SteamMatchClient:
         return sorted(collected)[-max_matches:]
 
 
+def _stat_int(value: Any) -> int | None:
+    """Read a non-negative counter (kills / deaths / assists) out of an OpenDota player row.
+
+    Returns None instead of 0 when the field is missing, so the board can tell
+    "no kill" apart from "we never got that number".
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int) and value >= 0:
+        return value
+    if isinstance(value, float) and value.is_integer() and value >= 0:
+        return int(value)
+    return None
+
+
 def normalise_match(
     raw: dict[str, Any],
     league_id: int | None = None,
@@ -318,6 +333,9 @@ def normalise_match(
                 ),
                 "player_slot": player_slot,
                 "hero_id": int(player.get("hero_id") or 0),
+                "kills": _stat_int(player.get("kills")),
+                "deaths": _stat_int(player.get("deaths")),
+                "assists": _stat_int(player.get("assists")),
             }
         )
 
@@ -722,6 +740,32 @@ def write_hero_names(path: Path, heroes: dict[str, dict[str, str]]) -> bool:
     return True
 
 
+def _has_chinese_name(entry: dict[str, str]) -> bool:
+    """True when a hero entry carries an actual 中文 name rather than an English fallback."""
+    name = str(entry.get("zh") or "").strip()
+    return any("\u4e00" <= char <= "\u9fff" for char in name)
+
+
+def _keep_cached_chinese(
+    heroes: dict[str, dict[str, str]],
+    cached: dict[str, dict[str, str]],
+) -> dict[str, dict[str, str]]:
+    """Take Chinese names back from the cache when Valve's 简体中文 feed was down.
+
+    build_hero_names falls back to the English name with no Chinese feed, and
+    writing that out would quietly replace every translation on disk until the
+    next lucky run. Only a genuinely Chinese cached name is kept, so an old
+    English fallback never gets frozen in place.
+    """
+    merged: dict[str, dict[str, str]] = {}
+    for hero_id, entry in heroes.items():
+        previous = cached.get(hero_id)
+        if previous and not _has_chinese_name(entry) and _has_chinese_name(previous):
+            entry = {**entry, "zh": previous["zh"]}
+        merged[hero_id] = entry
+    return merged
+
+
 def refresh_hero_names(
     *,
     config: dict[str, Any],
@@ -737,6 +781,7 @@ def refresh_hero_names(
     heroes, note = collect_hero_names(client=client, transport=transport)
     if not heroes:
         return path, len(load_hero_cache(path)), note
+    heroes = _keep_cached_chinese(heroes, load_hero_cache(path))
     write_hero_names(path, heroes)
     return path, len(heroes), note
 
@@ -876,6 +921,23 @@ def _apply_names(match: dict[str, Any], names: dict[str, str]) -> dict[str, Any]
     return match
 
 
+def _has_full_roster_stats(match: dict[str, Any]) -> bool:
+    """True when every cached roster slot already carries kills / deaths / assists.
+
+    Snapshots written before the KDA column only stored account id, name, hero and
+    slot, so those matches get one refetch to pick the combat numbers up. Once the
+    keys exist - even with None values - the cached copy is trusted again, so this
+    does not spend quota on every run.
+    """
+    players = match.get("players")
+    if not isinstance(players, list) or not players:
+        return False
+    return all(
+        isinstance(player, dict) and {"kills", "deaths", "assists"} <= set(player)
+        for player in players
+    )
+
+
 def _collect_matches(
     *,
     match_ids: list[int],
@@ -915,7 +977,8 @@ def _collect_matches(
 
     for match_id in kept_ids:
         cached = existing.get(match_id)
-        if cached is not None and match_id not in refresh_ids:
+        needs_stats = cached is not None and not _has_full_roster_stats(cached)
+        if cached is not None and match_id not in refresh_ids and not needs_stats:
             if skipped(match_id, cached):
                 continue
             matches[match_id] = _apply_names(cached, names)
