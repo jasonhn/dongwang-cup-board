@@ -19,10 +19,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "site" / "data" / "league.json"
 
-# 现行规则 v5（群规）：初始 0 分，赢一局 +50，输一局 −35。与 site/app.js 里那两个常量必须
-# 一致，tests/test_ranking.py 会钉住它们。只有比值有意义：50 : 35 最简是 10 : 7。
+# 现行规则 v6（群规）：初始 0 分，赢一局 +50，输一局 −40。与 site/app.js 里那两个常量必须
+# 一致，tests/test_ranking.py 会钉住它们。只有比值有意义：50 : 40 最简是 5 : 4。
 WIN_POINTS = 50
-LOSS_POINTS = 35
+LOSS_POINTS = 40
 
 # 只用于新旧对照，不是现行标准。
 V1 = (1, 1)          # (w+1)/(n+2)：往 50% 收缩，先验 k = 2
@@ -83,7 +83,7 @@ def points_of(entry: dict[str, float]) -> int:
 
 
 def rank_points(players: dict[int, dict[str, float]]) -> list[int]:
-    """现行标准 v5：积分 → 胜场数 → 昵称 → Account ID（后两级只是显示顺序）。"""
+    """现行标准 v6：积分 → 胜场数 → 昵称 → Account ID（后两级只是显示顺序）。"""
     return sorted(
         players,
         key=lambda account: (
@@ -161,7 +161,7 @@ def report_standings(players) -> None:
     pos_v1 = {account: i + 1 for i, account in enumerate(rank_smoothed(players, V1))}
     pos_v2 = {account: i + 1 for i, account in enumerate(rank_smoothed(players, V2))}
     pos_net = {account: i + 1 for i, account in enumerate(rank_net(players))}
-    header(f"现行标准 v5：积分 = {WIN_POINTS}×胜 − {LOSS_POINTS}×负，同分比胜场数")
+    header(f"现行标准 v6：积分 = {WIN_POINTS}×胜 − {LOSS_POINTS}×负，同分比胜场数")
     print("   名次 玩家                 胜 负 场  胜率   积分  净胜场   v1  v2  净胜场版")
     for i, account in enumerate(current[:14]):
         entry = players[account]
@@ -232,7 +232,8 @@ def report_rule_sensitivity(players) -> None:
     for win, loss in (
         (WIN_POINTS, LOSS_POINTS),        # 现行
         (2 * WIN_POINTS, 2 * LOSS_POINTS),# 齐次性：同乘 2，榜应当完全一样
-        (50, 30),                          # 上一版 v4 的比值
+        (50, 35),                          # 上一版 v5 的比值
+        (50, 30),                          # v4 的比值
         (50, 50),                          # 等价于净胜场（盈亏平衡 50%）
         (50, 20),
         (3, 1),

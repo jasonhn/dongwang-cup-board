@@ -11,7 +11,7 @@
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css?v=20261117-3" />
-    <script src="./app.js?v=20261117-7" type="module"></script>
+    <script src="./app.js?v=20261117-8" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -119,13 +119,6 @@
             <p class="eyebrow">论功行赏</p>
             <h2 id="statsTitle">玩家统计</h2>
           </div>
-          <p class="panel-caption">
-            排名按 <b>积分</b> 排序：积分 = 胜场 × 50 − 负场 × 35，也就是<b>赢一局 +50 分、输一局 −35 分</b>，初始 0 分。同分比胜场数（同分之下胜场多就是场数多，所以出勤在同分处仍被奖励）；胜、负两列都一样的两个人<b>并列同名次</b>。规则写死在代码里，任何人拿表里的胜、负两列都能自己复算。<br />
-            把积分写成场数与胜率：<b>积分 = 场数 ×（85 × 胜率 − 35）</b>，盈亏平衡胜率是 35 ÷ 85 = <b>41.2%</b>，正好落在 <b>7 胜 10 负</b>——多打 17 场里 7 胜 10 负，积分一分不变。真实胜率高于 41.2% 的人，多打一场就涨分；低于这条线的人多打会掉分。胜率低于这个线的人靠出勤榜被表扬，不靠改积分。<br />
-            「积分」这一列就是排序用的分数，拿表里的胜、负两列代进上面的公式即可复算，不需要任何内部数据。<br />
-            「胜率」这一列＝这名玩家的联赛胜率（胜场 ÷ 总场数）。内战都是组队打的，所以它就是你的胜率。点任意一个 Account ID 可以看他和每个队友的同队场次、胜负与胜率。<br />
-            「总 K/D/A」＝这名玩家在当前时间范围内<b>每一局的杀／死／助分别相加</b>（悬停会写覆盖了几场）。它是参考信息，<b>不参与积分与排名</b>。
-          </p>
         </div>
         <div class="legend legend-inline" aria-label="胜率颜色说明">
           <span><i class="legend-loss"></i>低于 40%</span>
@@ -162,10 +155,6 @@
             <p class="eyebrow">战报存档</p>
             <h2 id="archiveTitle">全部比赛</h2>
           </div>
-          <p class="panel-caption">
-            按时间倒序列出已收录的每一场内战。点一行的三角形可以展开该局的天辉／夜魇阵容、英雄与胜负。<br />
-            列表跟随上方的时间筛选；比赛 ID 那一栏的“详细战报”会打开 OpenDota 的原页。
-          </p>
         </div>
         <div class="archive-toolbar">
           <span class="archive-count" id="archiveCount">0 场</span>

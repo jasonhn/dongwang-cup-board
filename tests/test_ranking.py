@@ -1,6 +1,6 @@
 """排名标准的回归测试。
 
-标准是联赛积分规则：初始 0 分，赢一局 +50，输一局 −35，按积分降序排；同分比胜场数；
+标准是联赛积分规则：初始 0 分，赢一局 +50，输一局 −40，按积分降序排；同分比胜场数；
 胜、负两列完全相同的人并列同名次。测试不重写一份算法，而是把 site/app.js 里线上那份
 pointsOf / comparePlayerRanking / rankNumbers 抠出来交给 node 跑，保证测的就是浏览器里那份代码。
 """
@@ -179,14 +179,11 @@ def test_kda_does_not_change_the_ranking() -> None:
 
 
 def test_points_rule_is_the_published_one() -> None:
-    """积分规则是群规：赢 +50、输 −35，初始 0 分。改数字必须连页面说明一起改。"""
+    """积分规则是群规：赢 +50、输 −40，初始 0 分。这两个数字只在代码与测试里钉死，
+    网页上不写规则说明（群友看表里的「积分」列就能复算），公示口径写在 README 与 docs。"""
     text = APP_JS.read_text("utf-8")
     assert WIN_VALUE.search(text).group(1) == "50", "赢一局加分不是 50 了"
-    assert LOSS_VALUE.search(text).group(1) == "35", "输一局扣分不是 35 了"
-    page = INDEX_HTML.read_text("utf-8")
-    assert "赢一局 +50 分、输一局 −35 分" in page, "页面说明没跟上积分规则"
-    assert "41.2%" in page, "页面说明没写盈亏平衡胜率（35 ÷ 85 ≈ 41.2%）"
-
+    assert LOSS_VALUE.search(text).group(1) == "40", "输一局扣分不是 40 了"
     # 积分规则之外不许再出现别的可调系数，也不许做除法（除法会引入浮点误差）。
     leftovers = re.findall(
         r"RANKING_PRIOR_\w+|RANKING_WEIGHT|\w*(?:WEIGHT|LAMBDA|PRIOR|COEFF)\s*=\s*\d", text
@@ -199,24 +196,24 @@ def test_points_rule_is_the_published_one() -> None:
 
 
 def test_points_match_the_formula() -> None:
-    """积分 = 50×胜 − 35×负 = 场数 × (85×胜率 − 35)。"""
+    """积分 = 50×胜 − 40×负 = 场数 × (90×胜率 − 40)。"""
     cases = [player(1, 6, 1), player(2, 3, 0), player(3, 6, 6), player(4, 1, 3)]
-    assert points_of(cases) == [265, 150, 90, -55]
+    assert points_of(cases) == [260, 150, 60, -70]
 
 
 def test_more_games_beat_a_shorter_perfect_record() -> None:
-    """最初那条抱怨：7 局 6 胜 1 负（265 分）要排在 3 局全胜（150 分）前面。"""
+    """最初那条抱怨：7 局 6 胜 1 负（260 分）要排在 3 局全胜（150 分）前面。"""
     assert ranked_ids([player(1, 6, 1), player(2, 3, 0)]) == [1, 2]
 
 
 def test_equal_points_go_to_the_player_who_played_more() -> None:
-    """10:7 会让不同战绩同分（7 胜 0 负与 14 胜 10 负都是 350 分）：同分比胜场数。
+    """5:4 会让不同战绩同分（7 胜 0 负与 11 胜 5 负都是 350 分）：同分比胜场数。
 
-    同分 ⟺ (Δ胜, Δ负) = (7t, 10t)，也就是多打 17 场里 7 胜 10 负积分不变；同分之下
-    胜场多 ⟺ 场数多（w = (积分 + 35n)/85），所以同分处奖励的是出勤。
+    同分 ⟺ (Δ胜, Δ负) = (4t, 5t)，也就是多打 9 场里 4 胜 5 负积分不变；同分之下
+    胜场多 ⟺ 场数多（w = (积分 + 40n)/90），所以同分处奖励的是出勤。
     """
-    assert points_of([player(1, 7, 0), player(2, 14, 10)]) == [350, 350]
-    assert ranked_ids([player(1, 7, 0), player(2, 14, 10)]) == [2, 1]
+    assert points_of([player(1, 7, 0), player(2, 11, 5)]) == [350, 350]
+    assert ranked_ids([player(1, 7, 0), player(2, 11, 5)]) == [2, 1]
     # 同分且胜场数也相等 ⇒ 负场必然相等 ⇒ 战绩完全相同，顺序与传入顺序无关。
     pair = [player(1, 4, 3), player(2, 4, 3)]
     assert ranked_ids(pair) == ranked_ids(list(reversed(pair)))
@@ -225,29 +222,29 @@ def test_equal_points_go_to_the_player_who_played_more() -> None:
 def test_a_single_lucky_win_cannot_reach_the_podium() -> None:
     """1 局全胜只有 50 分，靠规则本身就被压在多赢过的人后面，不需要人为门槛。"""
     cases = [
-        player(1, 6, 1),   # 265 分
-        player(2, 5, 2),   # 180 分
+        player(1, 6, 1),   # 260 分
+        player(2, 5, 2),   # 170 分
         player(3, 3, 0),   # 150 分
-        player(4, 3, 1),   # 115 分
+        player(4, 3, 1),   # 110 分
         player(5, 1, 0),   #  50 分，只有 1 场
-        player(6, 5, 4),   # 110 分
-        player(7, 6, 6),   #  90 分：五成选手打满也只有 90 分，低于盈亏平衡线
+        player(6, 5, 4),   #  90 分
+        player(7, 6, 6),   #  60 分：五成胜率打满 12 场也只有 60 分，仍排在 3 胜 1 负后面
     ]
     assert ranked_ids(cases) == [1, 2, 3, 4, 6, 7, 5]
 
 
-def test_break_even_win_rate_is_41_2_percent() -> None:
-    """盈亏平衡胜率 35 ÷ 85 = 7/17 ≈ 41.2%：高于这条线的人多打涨分，低于的人多打掉分。"""
-    # 1 胜 0 负（50 分）：按 60% 继续打到 3 胜 2 负（80 分）是涨的。
-    assert points_of([player(1, 1, 0), player(2, 3, 2)]) == [50, 80]
-    # 按 33% 继续打到 1 胜 3 负（−55 分）是掉的。
-    assert points_of([player(1, 1, 0), player(2, 1, 3)]) == [50, -55]
-    # 正好 41.2% 的人（7 胜 10 负）打完 17 场是 0 分，等于初始分。
-    assert points_of([player(1, 7, 10)]) == [0]
+def test_break_even_win_rate_is_44_4_percent() -> None:
+    """盈亏平衡胜率 40 ÷ 90 = 4/9 ≈ 44.4%：高于这条线的人多打涨分，低于的人多打掉分。"""
+    # 1 胜 0 负（50 分）：按 60% 继续打到 3 胜 2 负（70 分）是涨的。
+    assert points_of([player(1, 1, 0), player(2, 3, 2)]) == [50, 70]
+    # 按 33% 继续打到 1 胜 3 负（−70 分）是掉的。
+    assert points_of([player(1, 1, 0), player(2, 1, 3)]) == [50, -70]
+    # 正好 44.4% 的人（4 胜 5 负）打完 9 场是 0 分，等于初始分。
+    assert points_of([player(1, 4, 5)]) == [0]
 
 
 def test_a_win_always_helps_and_a_loss_always_hurts() -> None:
-    """任何战绩下，多赢一局名次只升不降（+50）、多输一局只降不升（−35），杠杆恒定。"""
+    """任何战绩下，多赢一局名次只升不降（+50）、多输一局只降不升（−40），杠杆恒定。"""
     grid = [(w, l) for w in range(9) for l in range(9) if w + l > 0]
     order = ranked_ids([player(w * 100 + l, w, l) for w, l in grid])
     position = {player_id: index for index, player_id in enumerate(order)}
@@ -271,18 +268,13 @@ def test_identical_records_share_one_rank() -> None:
     assert rank_labels([player(i, 2, 2) for i in range(1, 6)]) == [1, 1, 1, 1, 1]
 
 
-def test_page_explanation_matches_the_code() -> None:
-    """页面上写给群友看的口径必须和代码一致，防止说明与实现各改各的。"""
+def test_table_columns_and_rendering_match_the_code() -> None:
+    """玩家表的列与渲染必须和代码一致：网页不写规则说明，但排序量本身要看得见。"""
     page = INDEX_HTML.read_text("utf-8")
-    assert "积分 = 胜场 × 50 − 负场 × 35" in page, "index.html 的排名说明没跟上代码里的规则"
-    assert "85 × 胜率 − 35" in page, "页面没把积分写成场数与胜率的形式"
-    assert "并列同名次" in page, "页面没说明并列名次的规则"
     assert "个人胜率" not in page, "页面还留着已经去掉的那一列胜率"
     assert "组队胜率" not in page, "胜率那一列已经改名，页面还留着旧列名"
     assert "<th>胜率</th>" in page, "玩家表没有名为「胜率」的那一列"
-    assert "胜场 ÷ 总场数" in page, "页面没说明胜率等于胜场 ÷ 总场数"
     assert "<th>总 K/D/A</th>" in page, "玩家表没有总 K/D/A 那一列"
-    assert "不参与积分与排名" in page, "页面没说清总 K/D/A 只是参考列"
     render = re.search(
         r"function renderStats\(players, teamById\) \{[\s\S]*?\n\}", APP_JS.read_text("utf-8")
     )
