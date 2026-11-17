@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-16T20:59:59.328478+00:00",
+  "generated_at_utc": "2026-11-17T14:42:54.947718+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 19,
-    "matches_available": 18,
+    "match_ids_returned": 20,
+    "matches_available": 19,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -2010,6 +2010,116 @@
           "hero_id": 98,
           "kills": 5,
           "deaths": 8,
+          "assists": 6
+        }
+      ]
+    },
+    {
+      "match_id": 9094063190,
+      "league_id": 19905,
+      "start_time": 1794920222,
+      "duration": 1808,
+      "radiant_win": true,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 14,
+          "kills": 12,
+          "deaths": 9,
+          "assists": 23
+        },
+        {
+          "account_id": 902957819,
+          "personaname": "落颜倾城",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 39,
+          "kills": 13,
+          "deaths": 5,
+          "assists": 28
+        },
+        {
+          "account_id": 129964895,
+          "personaname": "Monkey see Monkey do",
+          "display_name": "Monkey see Monkey do",
+          "player_slot": 2,
+          "hero_id": 56,
+          "kills": 9,
+          "deaths": 6,
+          "assists": 9
+        },
+        {
+          "account_id": 303694345,
+          "personaname": "rrapeter",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 123,
+          "kills": 15,
+          "deaths": 2,
+          "assists": 41
+        },
+        {
+          "account_id": 220265151,
+          "personaname": "抖音DOTA2小面羊",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 60,
+          "kills": 22,
+          "deaths": 4,
+          "assists": 25
+        },
+        {
+          "account_id": 170923779,
+          "personaname": "Freeman",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 69,
+          "kills": 10,
+          "deaths": 13,
+          "assists": 13
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 121,
+          "kills": 3,
+          "deaths": 13,
+          "assists": 17
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 49,
+          "kills": 2,
+          "deaths": 16,
+          "assists": 7
+        },
+        {
+          "account_id": 1797244696,
+          "personaname": "前言花奶",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 101,
+          "kills": 5,
+          "deaths": 17,
+          "assists": 11
+        },
+        {
+          "account_id": 131204688,
+          "personaname": "一支穿云箭",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 8,
+          "kills": 5,
+          "deaths": 13,
           "assists": 6
         }
       ]
