@@ -164,34 +164,29 @@ function formatPercent(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-// 排名用的虚拟战绩：先给每人记 3 胜 3 负（内战每局五五开，联盟平均胜率必然是 50%），
-// 之后每打一局，真实胜率才把名次往他自己的水平拉。虚拟场次越多，连胜的运气成分掉得越快。
+// 排名标准：净胜场（胜场 − 负场），同分比胜场数。整条规则没有任何可调参数，
+// 每个人都能用表里的"胜""负"两列自己手算出来，管理员没有任何可以主观加减的地方。
 //
-// 原来是 1 胜 1 负，在这个联赛才十几场的时候压不住小样本：3 局全胜算出 0.800，
-// 反而排在 7 局 6 胜 1 负的 0.778 前面，等于告诉群友"打得多排名低"。
-// 提到 3 胜 3 负后，6 胜 1 负 = 0.692 > 3 局全胜 = 0.667，打满 7 场的人回到该在的位置。
+// 为什么不用胜率：胜率把场数丢掉了，3 局全胜会排在 7 局 6 胜 1 负前面。
+// 为什么不用贝叶斯收缩（上一版 (w+3)/(n+6)）：那个 3 是需要人拍板的常数，
+// 一旦存在可调参数，排名就变成"管理员说了算"，群友有异议也没法对齐口径。
 //
-// 没有用"胜率 × 场次系数"那种乘法加权：它把所有人的分数一路往 0 压，刷场次就能盖过胜率
-// （12 局 5 成 = 0.375 会排在 7 局 57% = 0.364 前面），而且 0 胜的新人直接 0 分垫底。
-// 加法先验只在小样本时借力，场数一多就收敛回本人真实胜率，不会被出勤数反超。
+// 净胜场 = 胜场 − 负场 = 场数 × (2×胜率 − 1)，也就是"场数 × 超额胜率"，
+// 场数和质量同时计进去，且不需要任何系数：
+//   · 5 成的选手打满全场净胜场还是 0，刷场次占不到便宜；
+//   · 每多打一局的得失对每个人都是固定的 ±1，不会因为样本小就放大（收缩式会），
+//     所以不存在"为了保住名次而少打"的算计；
+//   · 1 局全胜净胜场只有 1，自动排在所有多赢的人后面，不需要人为设场次门槛。
 //
-// 调这两个常量前先记住两件事（推导见 README「排名算法」）：加法先验存在临界值，
-// 想让 6 胜 1 负压过 3 局全胜，虚拟场次 k 至少 3；但所需 k 会随双方场数线性上涨
-// （10 局全胜压过 25 胜 5 负要 k=10），所以"场数多一定排前面"不可能只靠公式实现；
-// 而 k 超过 6 以后，20 场人群内部的区分度会被明显压平。k=6 是两头都不吃亏的位置。
-const RANKING_PRIOR_WINS = 3;
-const RANKING_PRIOR_LOSSES = 3;
-const RANKING_PRIOR_GAMES = RANKING_PRIOR_WINS + RANKING_PRIOR_LOSSES;
-
+// 全程用整数相减，不做除法，也就不存在浮点误差把同一个人排出两种顺序的问题。
 function comparePlayerRanking(left, right) {
-  // 比较修正胜率（胜场 + 3）÷（总场数 + 6）。交叉相乘，避免浮点误差让同一个人排出两种顺序。
-  const adjustedRateOrder =
-    (right.wins + RANKING_PRIOR_WINS) * (left.total + RANKING_PRIOR_GAMES) -
-    (left.wins + RANKING_PRIOR_WINS) * (right.total + RANKING_PRIOR_GAMES);
+  const netLeft = left.wins - left.losses;
+  const netRight = right.wins - right.losses;
   return (
-    adjustedRateOrder ||
+    netRight - netLeft ||
     right.wins - left.wins ||
-    right.total - left.total ||
+    // 净胜场与胜场数都相等时，负场与总场数也就相等了（负场 = 胜场 − 净胜场），
+    // 剩下只有稳定排序作用：昵称字典序，再不行按 Account ID。
     left.name.localeCompare(right.name, "zh-CN") ||
     left.accountId - right.accountId
   );
@@ -214,25 +209,45 @@ const PODIUM = [
   { label: "季军", className: "trophy-third" },
 ];
 
-function makeRankCell(index) {
+// 名次只由战绩决定：净胜场与胜场数都相同的人，负场与总场数也相同，也就是战绩
+// 完全一样。标准里没有任何东西能区分他们，所以给出同一个名次（并列），
+// 表内的先后顺序只是显示顺序（昵称 → Account ID），不产生"谁压过谁"。
+function rankNumbers(players) {
+  const ranks = [];
+  players.forEach((player, index) => {
+    const previous = players[index - 1];
+    const tied =
+      previous !== undefined && previous.wins === player.wins && previous.losses === player.losses;
+    ranks.push(tied ? ranks[index - 1] : index + 1);
+  });
+  return ranks;
+}
+
+function makeRankCell(rank, tied) {
   const cell = document.createElement("td");
   const badge = document.createElement("span");
-  const podium = PODIUM[index];
+  const podium = PODIUM[rank - 1];
+  const tieLabel = tied ? `并列第 ${rank} 名` : `第 ${rank} 名`;
   if (podium) {
     badge.className = `rank-badge trophy ${podium.className}`;
-    badge.title = podium.label;
+    badge.title = tied ? `${podium.label}（并列）` : podium.label;
     badge.innerHTML = `${TROPHY_ICON}<small>${podium.label}</small>`;
     cell.append(badge);
     const screenOnly = document.createElement("span");
     screenOnly.className = "visually-hidden";
-    screenOnly.textContent = `${podium.label}，第 ${index + 1} 名`;
+    screenOnly.textContent = `${podium.label}，${tieLabel}`;
     cell.append(screenOnly);
     return cell;
   }
 
   badge.className = "rank-badge";
-  badge.textContent = String(index + 1);
+  badge.textContent = String(rank);
+  if (tied) badge.title = tieLabel;
   cell.append(badge);
+  const screenOnly = document.createElement("span");
+  screenOnly.className = "visually-hidden";
+  screenOnly.textContent = tieLabel;
+  cell.append(screenOnly);
   return cell;
 }
 
@@ -449,10 +464,11 @@ function renderStats(players, teamById) {
   elements.statsBody.replaceChildren();
   elements.statsEmpty.hidden = players.length > 0;
 
+  const ranks = rankNumbers(players);
   players.forEach((player, index) => {
     const row = document.createElement("tr");
     const team = teamById.get(player.accountId) || { partners: [], games: 0, meanRate: null };
-    row.append(makeRankCell(index));
+    row.append(makeRankCell(ranks[index], ranks[index] === ranks[index - 1]));
     row.append(makePlayerCell(player, team));
     const idCell = document.createElement("td");
     idCell.className = "account-id col-id";
