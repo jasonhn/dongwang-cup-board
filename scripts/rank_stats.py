@@ -54,6 +54,18 @@ def load(path: Path = DATA):
             )
             entry["wins"] += won
             entry["games"] += 1
+            kda = [player.get("kills"), player.get("deaths"), player.get("assists")]
+            if all(isinstance(value, int) for value in kda):
+                # 与 site/app.js 的 calculate() 同一口径：缺字段的场次不计入合计，但仍计入场次
+                entry["kills"] = entry.get("kills", 0) + kda[0]
+                entry["deaths"] = entry.get("deaths", 0) + kda[1]
+                entry["assists"] = entry.get("assists", 0) + kda[2]
+                entry["kda_games"] = entry.get("kda_games", 0) + 1
+            else:
+                entry.setdefault("kills", 0)
+                entry.setdefault("deaths", 0)
+                entry.setdefault("assists", 0)
+                entry.setdefault("kda_games", 0)
             roster.append((account, won))
             slots += 1
         rounds.append(roster)
@@ -307,6 +319,31 @@ def report_power() -> None:
         print(f"  p={p:.0%} → {math.ceil((za + zb) ** 2 * p * (1 - p) / (p - 0.5) ** 2)} 场/人")
 
 
+def report_kda(players) -> None:
+    """参考列「总 K/D/A」：当前快照里每一局的杀/死/助分别相加，与排序无关。"""
+    header("参考列：总 K/D/A（不参与积分与排名）")
+    killed = sum(int(e.get("kills", 0)) for e in players.values())
+    died = sum(int(e.get("deaths", 0)) for e in players.values())
+    assisted = sum(int(e.get("assists", 0)) for e in players.values())
+    covered = sum(int(e.get("kda_games", 0)) for e in players.values())
+    slots_total = sum(int(e["games"]) for e in players.values())
+    print(f"  联盟合计：杀 {killed} · 死 {died} · 助 {assisted}；覆盖 {covered}/{slots_total} 个可归属位置")
+    order = rank_points(players)
+    labels = rank_labels(order, players)
+    rank_of = {account: labels[i] for i, account in enumerate(order)}
+    top = sorted(
+        players,
+        key=lambda a: (-int(players[a].get("kills", 0)), -int(players[a].get("assists", 0)), a),
+    )[:5]
+    print("  按总击杀前五（括号里是积分榜名次与积分）：")
+    for account in top:
+        entry = players[account]
+        kills, deaths, assists = (int(entry["kills"]), int(entry["deaths"]), int(entry["assists"]))
+        print(f"     {name_of(players, account):<18} {kills}/{deaths}/{assists}"
+              f"  （第 {rank_of[account]} 名，{points_of(entry)} 分）")
+    print("  这一列只做展示：K/D/A 与胜负不是线性关系，把它加进积分就会把主观判断塞进排名。")
+
+
 def report_attendance(players) -> None:
     busiest = max(e["games"] for e in players.values())
     header("出勤与主榜的边界")
@@ -334,6 +371,7 @@ def main() -> None:
     report_permutation(players, rounds)
     report_power()
     report_attendance(players)
+    report_kda(players)
 
 
 if __name__ == "__main__":

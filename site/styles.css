@@ -806,6 +806,13 @@ th:last-child {
   background: #ffe7a8;
 }
 
+/* 总 K/D/A 是参考列：等宽数字、不要比积分那一列抢眼。 */
+.stats-table .kda-total {
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;

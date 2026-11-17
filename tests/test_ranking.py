@@ -22,6 +22,10 @@ INDEX_HTML = ROOT / "site" / "index.html"
 POINTS = re.compile(r"function pointsOf\(player\) \{[\s\S]*?\n\}")
 COMPARATOR = re.compile(r"function comparePlayerRanking\(left, right\) \{[\s\S]*?\n\}")
 RANKS = re.compile(r"function rankNumbers\(players\) \{[\s\S]*?\n\}")
+VISIBLE = re.compile(r"function getVisiblePlayers\(match\) \{[\s\S]*?\n\}")
+CALCULATE = re.compile(r"function calculate\(matches\) \{[\s\S]*?\n\}")
+READ_KDA = re.compile(r"function readKda\(source\) \{[\s\S]*?\n\}")
+KDA_TOTALS = re.compile(r"function formatKdaTotals\(player\) \{[\s\S]*?\n\}")
 WIN_VALUE = re.compile(r"const\s+POINTS_PER_WIN\s*=\s*(\d+)\s*;")
 LOSS_VALUE = re.compile(r"const\s+POINTS_PER_LOSS\s*=\s*(\d+)\s*;")
 
@@ -76,6 +80,102 @@ def rank_labels(cases: list[dict[str, object]]) -> list[int]:
 
 def points_of(cases: list[dict[str, object]]) -> list[int]:
     return ranking_source(cases, "cases.map((p) => pointsOf(p))")
+
+
+def slot(
+    account_id: int, player_slot: int, kills: object, deaths: object, assists: object
+) -> dict[str, object]:
+    return {
+        "account_id": account_id,
+        "player_slot": player_slot,
+        "personaname": f"选手{account_id}",
+        "kills": kills,
+        "deaths": deaths,
+        "assists": assists,
+    }
+
+
+def game(match_id: int, radiant_win: bool, players: list[dict[str, object]]) -> dict[str, object]:
+    return {
+        "match_id": match_id,
+        "start_time": 1_700_000_000 + match_id,
+        "radiant_win": radiant_win,
+        "players": players,
+    }
+
+
+def kda_totals(matches: list[dict[str, object]]) -> list[dict[str, object]]:
+    """把 app.js 里线上那份 calculate() 与 formatKdaTotals() 交给 node 跑。"""
+    text = APP_JS.read_text("utf-8")
+    consts = re.findall(r"const\s+POINTS_PER_(?:WIN|LOSS)\s*=\s*\d+\s*;", text)
+    blocks = [
+        POINTS.search(text),
+        COMPARATOR.search(text),
+        VISIBLE.search(text),
+        READ_KDA.search(text),
+        CALCULATE.search(text),
+        KDA_TOTALS.search(text),
+    ]
+    assert all(blocks), "site/app.js 里找不到 calculate / getVisiblePlayers / readKda / formatKdaTotals"
+    expression = (
+        "calculate(matches).players.map((p) => {"
+        "  const totals = formatKdaTotals(p);"
+        "  return {"
+        "    id: p.accountId, wins: p.wins, losses: p.losses, games: p.total,"
+        "    kdaGames: p.kdaGames, text: totals ? totals.text : null,"
+        "    label: totals ? totals.label : null"
+        "  };"
+        "})"
+    )
+    script = "\n".join(
+        [
+            *consts,
+            *[block.group(0) for block in blocks],
+            f"const matches = {json.dumps(matches, ensure_ascii=False)};",
+            f"console.log(JSON.stringify({expression}));",
+        ]
+    )
+    return node(script)
+
+
+def by_id(rows: list[dict[str, object]]) -> dict[int, dict[str, object]]:
+    return {int(row["id"]): row for row in rows}
+
+
+def test_kda_totals_sum_every_game() -> None:
+    """「总 K/D/A」＝当前范围内每一局的杀/死/助分别相加，与胜负无关。"""
+    matches = [
+        game(1, True, [slot(1, 0, 2, 1, 3), slot(2, 1, 4, 2, 5), slot(3, 2, 0, 6, 1)]),
+        game(2, True, [slot(1, 128, 4, 2, 5), slot(2, 129, 1, 1, 1), slot(3, 130, 9, 0, 2)]),
+    ]
+    rows = by_id(kda_totals(matches))
+    assert rows[1]["text"] == "6/3/8", "1 号玩家的 K/D/A 合计不是两局相加"
+    assert rows[1]["wins"] == 1 and rows[1]["losses"] == 1
+    assert rows[2]["text"] == "5/3/6"
+    assert rows[3]["text"] == "9/6/3"
+    assert rows[1]["label"] == "K/D/A 合计 6 杀 3 死 8 助攻 · 已汇总 2/2 场"
+
+
+def test_kda_missing_games_are_counted_but_not_summed() -> None:
+    """老快照缺 KDA 字段时：场次照算、合计不进入，页面要说清覆盖了几场，不许造假 0。"""
+    matches = [game(1, True, [slot(1, 0, 3, 1, 2)]), game(2, True, [slot(1, 0, None, None, None)])]
+    row = by_id(kda_totals(matches))[1]
+    assert row["games"] == 2 and row["kdaGames"] == 1
+    assert row["text"] == "3/1/2"
+    assert row["label"] == "K/D/A 合计 3 杀 1 死 2 助攻 · 已汇总 1/2 场"
+
+
+def test_kda_does_not_change_the_ranking() -> None:
+    """KDA 只是参考列：刷 KDA 不会改变积分与名次。"""
+    matches = [
+        game(1, True, [slot(1, 0, 1, 5, 1), slot(2, 129, 20, 0, 20)]),
+        game(2, True, [slot(1, 0, 1, 5, 1), slot(2, 129, 20, 0, 20)]),
+    ]
+    rows = kda_totals(matches)
+    assert rows[0]["wins"] == 2 and rows[0]["losses"] == 0
+    assert rows[1]["wins"] == 0 and rows[1]["losses"] == 2
+    assert rows[0]["text"] == "2/10/2" and rows[1]["text"] == "40/0/40"
+    assert [int(row["id"]) for row in rows] == [1, 2], "刷 KDA 不该改变名次：排序只看积分与胜场数"
 
 
 def test_points_rule_is_the_published_one() -> None:
@@ -181,10 +281,13 @@ def test_page_explanation_matches_the_code() -> None:
     assert "组队胜率" not in page, "胜率那一列已经改名，页面还留着旧列名"
     assert "<th>胜率</th>" in page, "玩家表没有名为「胜率」的那一列"
     assert "胜场 ÷ 总场数" in page, "页面没说明胜率等于胜场 ÷ 总场数"
+    assert "<th>总 K/D/A</th>" in page, "玩家表没有总 K/D/A 那一列"
+    assert "不参与积分与排名" in page, "页面没说清总 K/D/A 只是参考列"
     render = re.search(
         r"function renderStats\(players, teamById\) \{[\s\S]*?\n\}", APP_JS.read_text("utf-8")
     )
     assert render and render.group(0).count("makeRateCell(") == 1, "玩家表应该只渲染一列胜率"
+    assert render and "formatKdaTotals(player)" in render.group(0), "总 K/D/A 那一列没按累加值渲染"
     # 排序用的积分必须是表里看得见的一列，否则群友没法直接复算自己为什么排这里。
     assert '<th class="col-points">积分</th>' in page, "玩家表没有积分这一列"
     assert render and "pointsOf(player)" in render.group(0), "积分那一列没按 pointsOf() 渲染"

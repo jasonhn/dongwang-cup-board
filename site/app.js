@@ -366,6 +366,9 @@ function calculate(matches) {
       name: player.display_name || player.personaname || `Account ${player.account_id}`,
       display_name: player.display_name || null,
       radiant: Number(player.player_slot) < 128,
+      kills: player.kills,
+      deaths: player.deaths,
+      assists: player.assists,
     }));
 
     for (const player of players) {
@@ -377,10 +380,22 @@ function calculate(matches) {
         losses: 0,
         total: 0,
         latestStart: 0,
+        kills: 0,
+        deaths: 0,
+        assists: 0,
+        // KDA 是展示用的合计，不参与排序；老快照里缺字段的场次不计入合计，只计入场次。
+        kdaGames: 0,
       };
       current.wins += won ? 1 : 0;
       current.losses += won ? 0 : 1;
       current.total += 1;
+      const kda = readKda(player);
+      if (kda) {
+        current.kills += kda.kills;
+        current.deaths += kda.deaths;
+        current.assists += kda.assists;
+        current.kdaGames += 1;
+      }
       if (match.start_time >= current.latestStart) {
         // Group nicknames are stable; Steam nicknames can change, so only follow
         // them when the player has no configured display name.
@@ -471,6 +486,18 @@ function renderStats(players, teamById) {
     // 只剩一列「胜率」，等于胜场 ÷ 总场数：内战都是组队打的，所以这名玩家的联赛
     // 胜率就是他的胜率。原来那个按队友关系取平均的综合值已经去掉，同队明细在这个弹窗里。
     row.append(makeRateCell(player.wins / player.total));
+    // 「总 K/D/A」是每一局杀/死/助的累加，只做参考，不参与积分与排名。
+    const kdaCell = document.createElement("td");
+    kdaCell.className = "kda-total";
+    const totals = formatKdaTotals(player);
+    if (totals) {
+      kdaCell.textContent = totals.text;
+      kdaCell.title = totals.label;
+      kdaCell.setAttribute("aria-label", totals.label);
+    } else {
+      kdaCell.textContent = "—";
+    }
+    row.append(kdaCell);
     elements.statsBody.append(row);
   });
 }
@@ -671,15 +698,30 @@ function makeHeroCell(heroId) {
 
 // OpenDota 给每个选手位都带 kills / deaths / assists；老快照里没有这三个字段时
 // 显示占位符，而不是假的 0/0/0。
-function formatKda(player) {
-  const stats = [player.kills, player.deaths, player.assists].map((value) =>
+function readKda(source) {
+  const stats = [source.kills, source.deaths, source.assists].map((value) =>
     value === null || value === undefined || value === "" ? null : Number(value),
   );
   if (stats.some((value) => value === null || !Number.isFinite(value))) return null;
-  const [kills, deaths, assists] = stats;
+  return { kills: stats[0], deaths: stats[1], assists: stats[2] };
+}
+
+function formatKda(player) {
+  const kda = readKda(player);
+  if (!kda) return null;
   return {
-    text: `${kills}/${deaths}/${assists}`,
-    label: `${kills} 杀 ${deaths} 死 ${assists} 助攻`,
+    text: `${kda.kills}/${kda.deaths}/${kda.assists}`,
+    label: `${kda.kills} 杀 ${kda.deaths} 死 ${kda.assists} 助攻`,
+  };
+}
+
+// 排名表里的「总 K/D/A」：当前时间范围内该玩家每一局的杀/死/助分别相加。
+// 悬停与读屏会说清楚覆盖了几场，因为缺字段的场次不进入合计但仍计入场次。
+function formatKdaTotals(player) {
+  if (!player.kdaGames) return null;
+  return {
+    text: `${player.kills}/${player.deaths}/${player.assists}`,
+    label: `K/D/A 合计 ${player.kills} 杀 ${player.deaths} 死 ${player.assists} 助攻 · 已汇总 ${player.kdaGames}/${player.total} 场`,
   };
 }
 
