@@ -164,10 +164,30 @@ function formatPercent(value) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
+// 排名用的虚拟战绩：先给每人记 3 胜 3 负（内战每局五五开，联盟平均胜率必然是 50%），
+// 之后每打一局，真实胜率才把名次往他自己的水平拉。虚拟场次越多，连胜的运气成分掉得越快。
+//
+// 原来是 1 胜 1 负，在这个联赛才十几场的时候压不住小样本：3 局全胜算出 0.800，
+// 反而排在 7 局 6 胜 1 负的 0.778 前面，等于告诉群友"打得多排名低"。
+// 提到 3 胜 3 负后，6 胜 1 负 = 0.692 > 3 局全胜 = 0.667，打满 7 场的人回到该在的位置。
+//
+// 没有用"胜率 × 场次系数"那种乘法加权：它把所有人的分数一路往 0 压，刷场次就能盖过胜率
+// （12 局 5 成 = 0.375 会排在 7 局 57% = 0.364 前面），而且 0 胜的新人直接 0 分垫底。
+// 加法先验只在小样本时借力，场数一多就收敛回本人真实胜率，不会被出勤数反超。
+//
+// 调这两个常量前先记住两件事（推导见 README「排名算法」）：加法先验存在临界值，
+// 想让 6 胜 1 负压过 3 局全胜，虚拟场次 k 至少 3；但所需 k 会随双方场数线性上涨
+// （10 局全胜压过 25 胜 5 负要 k=10），所以"场数多一定排前面"不可能只靠公式实现；
+// 而 k 超过 6 以后，20 场人群内部的区分度会被明显压平。k=6 是两头都不吃亏的位置。
+const RANKING_PRIOR_WINS = 3;
+const RANKING_PRIOR_LOSSES = 3;
+const RANKING_PRIOR_GAMES = RANKING_PRIOR_WINS + RANKING_PRIOR_LOSSES;
+
 function comparePlayerRanking(left, right) {
-  // Compare (wins + 1) / (total + 2) exactly, without floating-point rounding.
+  // 比较修正胜率（胜场 + 3）÷（总场数 + 6）。交叉相乘，避免浮点误差让同一个人排出两种顺序。
   const adjustedRateOrder =
-    (right.wins + 1) * (left.total + 2) - (left.wins + 1) * (right.total + 2);
+    (right.wins + RANKING_PRIOR_WINS) * (left.total + RANKING_PRIOR_GAMES) -
+    (left.wins + RANKING_PRIOR_WINS) * (right.total + RANKING_PRIOR_GAMES);
   return (
     adjustedRateOrder ||
     right.wins - left.wins ||

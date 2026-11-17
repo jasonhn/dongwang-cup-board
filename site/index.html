@@ -11,7 +11,7 @@
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css?v=20261116-1" />
-    <script src="./app.js?v=20261116-1" type="module"></script>
+    <script src="./app.js?v=20261117-1" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -120,7 +120,7 @@
             <h2 id="statsTitle">玩家统计</h2>
           </div>
           <p class="panel-caption">
-            排名采用 Beta(1,1) 贝叶斯平滑：以 50% 初始胜率（等效一胜一负）进行校正，修正胜率 =（胜场 + 1）÷（总场数 + 2）；同分依次比较胜场、总场数。表中显示真实胜率。<br />
+            排名按修正胜率排序：每人先按联盟平均记 3 胜 3 负，修正胜率 =（胜场 + 3）÷（总场数 + 6），打得越多越贴近真实胜率，只打两三场就连胜占不到便宜；同分依次比较胜场、总场数。表中显示真实胜率。<br />
             组队胜率＝这名玩家每段队友关系胜率的平均值（不按共同场次加权，加权就等于个人胜率）。点任意一个 Account ID 可以看他和每个队友的场次、胜负与胜率。
           </p>
         </div>
