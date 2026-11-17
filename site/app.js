@@ -181,19 +181,20 @@ const PODIUM = [
   { label: "季军", className: "trophy-third" },
 ];
 
-// 联赛积分规则（群规，写死在这里，页面说明里也写着）：赢一局 +50 分，输一局 −30 分。
+// 联赛积分规则（群规，写死在这里，页面说明里也写着）：赢一局 +50 分，输一局 −35 分。
 // 两个数字是群规的一部分，不是"管理员可调的系数"：任何人用表里的胜、负两列都能
-// 复算出积分和名次。换算成胜率看：积分 = 场数 × (80 × 胜率 − 30)，盈亏平衡胜率
-// 是 30 / 80 = 37.5%，也就是说真实胜率高于 37.5% 的人多打就涨分。
+// 复算出积分和名次。换算成胜率看：积分 = 场数 × (85 × 胜率 − 35)，盈亏平衡胜率
+// 是 35 / 85 = 7/17 ≈ 41.18%，也就是说真实胜率高于这条线的人多打就涨分。
+// 只有比值有意义（10 : 7）：改成 +100/−70 榜单完全相同。
 const POINTS_PER_WIN = 50;
-const POINTS_PER_LOSS = 30;
+const POINTS_PER_LOSS = 35;
 
 function pointsOf(player) {
   return player.wins * POINTS_PER_WIN - player.losses * POINTS_PER_LOSS;
 }
 
-// 排序键：积分 → 胜场数。50:30 会让不同战绩算出同一个分（3 胜 0 负与 6 胜 5 负都是
-// 150 分），同分用胜场数拆开：积分相等时胜场多 ⟺ 场数多（w = (积分 + 30n)/80），
+// 排序键：积分 → 胜场数。10:7 会让不同战绩算出同一个分（10 胜 0 负与 17 胜 10 负都是
+// 500 分），同分用胜场数拆开：积分相等时胜场多 ⟺ 场数多（w = (积分 + 35n)/85），
 // 所以这一条还是在奖励出勤。积分与胜场数都相等时负场也就相等，也就是战绩完全一样：
 // 那时给出同一个名次（并列），昵称与 Account ID 只是显示顺序。
 function comparePlayerRanking(left, right) {
@@ -467,14 +468,14 @@ function renderStats(players, teamById) {
     row.append(makeCell("td", String(player.total), "total-games"));
     // 排序用的积分直接显示出来：任何人拿同一张表的胜、负两列都能复算这一列和名次。
     row.append(makeCell("td", String(pointsOf(player)), "points-cell"));
-    // 只剩一列胜率：内战都是组队打的，所以"这名玩家的胜率"就是他的联赛胜率。
-    // 原来那个按队友关系取平均的综合组队胜率已经去掉，同队明细在这个弹窗里。
+    // 只剩一列「胜率」，等于胜场 ÷ 总场数：内战都是组队打的，所以这名玩家的联赛
+    // 胜率就是他的胜率。原来那个按队友关系取平均的综合值已经去掉，同队明细在这个弹窗里。
     row.append(makeRateCell(player.wins / player.total));
     elements.statsBody.append(row);
   });
 }
 
-// 组队胜率改成单列排行：一名玩家一行，点任意一行展开他和每个队友的记录。
+// 胜率是单列排行：一名玩家一行，点任意一行展开他和每个队友的记录。
 function rateClass(rate) {
   if (rate < 0.4) return "rate-low";
   if (rate < 0.6) return "rate-mid";
@@ -577,7 +578,7 @@ function openPartnerDialog(player, team) {
   elements.partnerName.textContent = player.name;
   elements.partnerAccount.textContent = String(player.accountId);
   elements.partnerMeta.textContent = partners.length
-    ? `队友 ${partners.length} 人 · 同队出场 ${games} 场 · 本人联赛胜率 ${formatPercent(
+    ? `队友 ${partners.length} 人 · 同队出场 ${games} 场 · 本人胜率 ${formatPercent(
         player.total ? player.wins / player.total : null,
       )}`
     : "这个时间范围里还没有和任何人同队出场。";

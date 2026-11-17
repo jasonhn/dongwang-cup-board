@@ -788,7 +788,7 @@ th:last-child {
   font-size: 0.86rem;
 }
 
-/* 积分 = 胜场 × 50 − 负场 × 30，是排序用的那一列，所以视觉上比胜负两列重一点。 */
+/* 积分 = 胜场 × 50 − 负场 × 35，是排序用的那一列，所以视觉上比胜负两列重一点。 */
 .points-cell {
   color: var(--red-900);
   font-weight: 800;
@@ -860,10 +860,6 @@ th:last-child {
 .legend-inline {
   justify-content: flex-start;
   margin: 2px 0 16px;
-}
-
-.narrow {
-  display: none;
 }
 
 .partner-table {
@@ -1163,14 +1159,6 @@ footer p {
 
   .legend {
     justify-content: flex-start;
-  }
-
-  .narrow {
-    display: inline;
-  }
-
-  .wide {
-    display: none;
   }
 
   .col-id,

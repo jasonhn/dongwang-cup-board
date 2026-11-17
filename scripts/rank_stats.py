@@ -19,10 +19,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "site" / "data" / "league.json"
 
-# 现行规则 v4（群规）：初始 0 分，赢一局 +50，输一局 −30。与 site/app.js 里那两个常量必须一致，
-# tests/test_ranking.py 会钉住它们。
+# 现行规则 v5（群规）：初始 0 分，赢一局 +50，输一局 −35。与 site/app.js 里那两个常量必须
+# 一致，tests/test_ranking.py 会钉住它们。只有比值有意义：50 : 35 最简是 10 : 7。
 WIN_POINTS = 50
-LOSS_POINTS = 30
+LOSS_POINTS = 35
 
 # 只用于新旧对照，不是现行标准。
 V1 = (1, 1)          # (w+1)/(n+2)：往 50% 收缩，先验 k = 2
@@ -71,7 +71,7 @@ def points_of(entry: dict[str, float]) -> int:
 
 
 def rank_points(players: dict[int, dict[str, float]]) -> list[int]:
-    """现行标准 v4：积分 → 胜场数 → 昵称 → Account ID（后两级只是显示顺序）。"""
+    """现行标准 v5：积分 → 胜场数 → 昵称 → Account ID（后两级只是显示顺序）。"""
     return sorted(
         players,
         key=lambda account: (
@@ -149,7 +149,7 @@ def report_standings(players) -> None:
     pos_v1 = {account: i + 1 for i, account in enumerate(rank_smoothed(players, V1))}
     pos_v2 = {account: i + 1 for i, account in enumerate(rank_smoothed(players, V2))}
     pos_net = {account: i + 1 for i, account in enumerate(rank_net(players))}
-    header(f"现行标准 v4：积分 = {WIN_POINTS}×胜 − {LOSS_POINTS}×负，同分比胜场数")
+    header(f"现行标准 v5：积分 = {WIN_POINTS}×胜 − {LOSS_POINTS}×负，同分比胜场数")
     print("   名次 玩家                 胜 负 场  胜率   积分  净胜场   v1  v2  净胜场版")
     for i, account in enumerate(current[:14]):
         entry = players[account]
@@ -191,8 +191,11 @@ def report_properties(players) -> None:
     for wins, losses in ((6, 1), (3, 0), (5, 4), (0, 3)):
         here = wins * WIN_POINTS - losses * LOSS_POINTS
         print(f"     {wins}胜{losses}负 = {here} 分：赢一局 → {here + WIN_POINTS}（+{WIN_POINTS}）；输一局 → {here - LOSS_POINTS}（−{LOSS_POINTS}）")
-    print(f"     期望增益 = 场数 × ({WIN_POINTS + LOSS_POINTS}p − {LOSS_POINTS}) / 场数 = (80p − 30)，只跟真实胜率 p 有关，不随场数衰减")
-    print("  3) 同分时比胜场数；同分之下胜场多 ⟺ 场数多（w = (积分 + 30n)/80），所以同分处奖励出勤")
+    print(f"     期望增益 = 场数 × ({WIN_POINTS + LOSS_POINTS}p − {LOSS_POINTS}) / 场数 = ({WIN_POINTS + LOSS_POINTS}p − {LOSS_POINTS})，只跟真实胜率 p 有关，不随场数衰减")
+    g = math.gcd(WIN_POINTS, LOSS_POINTS)
+    dw, dl = LOSS_POINTS // g, WIN_POINTS // g      # 同分 ⟺ a·Δw = b·Δl ⟺ (Δw, Δl) = (b/g, a/g)·t
+    print(f"  3) 同分时比胜场数；同分 ⟺ (Δ胜, Δ负) = ({dw}, {dl})×t，也就是多打 {dw + dl} 场里 {dw} 胜 {dl} 负积分一分不变")
+    print(f"     同分之下胜场多 ⟺ 场数多（w = (积分 + {LOSS_POINTS}n)/{WIN_POINTS + LOSS_POINTS}），所以同分处奖励出勤；比值 {WIN_POINTS}:{LOSS_POINTS} 最简为 {WIN_POINTS // g}:{LOSS_POINTS // g}")
     by_score: dict[int, list[int]] = collections.defaultdict(list)
     for account in order:
         by_score[points_of(players[account])].append(account)
@@ -214,7 +217,14 @@ def report_rule_sensitivity(players) -> None:
     header("积分比例的敏感性（这两个数字是唯一的自由度，必须写进群规）")
     baseline = rank_points(players)
     pos = {account: i + 1 for i, account in enumerate(baseline)}
-    for win, loss in ((50, 30), (50, 50), (30, 30), (50, 20), (100, 60), (3, 1)):
+    for win, loss in (
+        (WIN_POINTS, LOSS_POINTS),        # 现行
+        (2 * WIN_POINTS, 2 * LOSS_POINTS),# 齐次性：同乘 2，榜应当完全一样
+        (50, 30),                          # 上一版 v4 的比值
+        (50, 50),                          # 等价于净胜场（盈亏平衡 50%）
+        (50, 20),
+        (3, 1),
+    ):
         order = sorted(
             players,
             key=lambda a: (-(int(players[a]["wins"]) * win - int(players[a]["games"] - int(players[a]["wins"])) * loss),
@@ -225,11 +235,13 @@ def report_rule_sensitivity(players) -> None:
         be = loss / (win + loss)
         print(f"     +{win}/−{loss}（盈亏平衡 {be:.1%}）：与现行榜不同 {moved:>2} 人，榜首 {name_of(players, top)} "
               f"{int(players[top]['wins'])}胜{int(players[top]['games']) - int(players[top]['wins'])}负")
-    six_one = next(a for a, e in players.items() if int(e["wins"]) == 6 and int(e["games"]) == 7)
-    eight_four = next((a for a, e in players.items() if int(e["wins"]) == 8 and int(e["games"]) == 12), None)
-    if eight_four:
-        print("     两个典型人：力量护腕 6胜1负 与 千秋 6胜8负…")
-    print("     6胜1负 与 8胜4负 谁在前，取决于比例：+50/−30 时 8胜4负(280) 在 6胜1负(270) 前面；净胜场时反过来")
+    a, b = WIN_POINTS, LOSS_POINTS
+    six_one = next(a_ for a_, e in players.items() if int(e["wins"]) == 6 and int(e["games"]) == 7)
+    p61, p84 = 6 * a - 1 * b, 8 * a - 4 * b
+    print(f"     判据一：盈亏平衡胜率 p* = b/(a+b) = {b}/{a + b} = {b / (a + b):.4f}")
+    print(f"     判据二：8胜4负 压过 6胜1负 需要 a/b > 3/2。现在 a/b = {a / b:.4f}"
+          f"（{'满足' if a / b > 1.5 else '不满足'}），于是 6胜1负({p61}) 与 8胜4负({p84}) 里 "
+          f"{('8胜4负' if p84 > p61 else '6胜1负')} 在前")
     print(f"     现行规则下：力量护腕（6胜1负）第 {pos[six_one]} 名")
 
 
@@ -298,7 +310,7 @@ def report_power() -> None:
 def report_attendance(players) -> None:
     busiest = max(e["games"] for e in players.values())
     header("出勤与主榜的边界")
-    print(f"  积分本身已经奖励出勤（积分 = 场数 × (80×胜率 − 30)），不需要再加出勤权重，也不需要人为资格线。")
+    print(f"  积分本身已经奖励出勤（积分 = 场数 × ({WIN_POINTS + LOSS_POINTS}×胜率 − {LOSS_POINTS})），不需要再加出勤权重，也不需要人为资格线。")
     print(f"  最活跃者 {busiest} 场；积分榜前五名的场数：{[int(players[a]['games']) for a in rank_points(players)[:5]]}")
     print(f"  再把出勤按每场加分塞进主榜，榜就会变成「谁更闲」：积分 + μ × 场数")
     for mu in (0, 5, 10, 20, 30):
