@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""排名标准的数据体检：复现 docs 里的数字，并检查口径是否客观。
+"""积分规则的数据体检：复现 docs 里的数字，并检查统计口径是否客观。
 
 只依赖标准库，读仓库里已采集好的快照，不联网：
 
@@ -10,24 +10,29 @@
 
 from __future__ import annotations
 
+import collections
 import json
 import math
 import random
-import collections
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "site" / "data" / "league.json"
 
-# 只用于"为什么要放弃收缩式"的对照，不是现行标准。
-V1 = (1, 1)          # (w+1)/(n+2)
-V2 = (3, 3)          # (w+3)/(n+6)，需要人拍板先验强度，已废弃
+# 现行规则 v4（群规）：初始 0 分，赢一局 +50，输一局 −30。与 site/app.js 里那两个常量必须一致，
+# tests/test_ranking.py 会钉住它们。
+WIN_POINTS = 50
+LOSS_POINTS = 30
+
+# 只用于新旧对照，不是现行标准。
+V1 = (1, 1)          # (w+1)/(n+2)：往 50% 收缩，先验 k = 2
+V2 = (3, 3)          # (w+3)/(n+6)：先验 k = 6，需要人拍板，已废弃
 SEED = 20261117
 PERMUTATIONS = 3000
 
 
 def load(path: Path = DATA):
-    """返回 {account_id: {wins, games, name}}、逐场选手列表、原始 metadata。"""
+    """返回 {account_id: {wins, games, name}}、逐场选手列表、人次、原始 metadata。"""
     payload = json.loads(path.read_text("utf-8"))
     players: dict[int, dict[str, float]] = {}
     rounds: list[list[tuple[int, bool]]] = []
@@ -59,12 +64,33 @@ def name_of(players: dict[int, dict[str, float]], account: int) -> str:
     return str(players[account]["name"])[:18]
 
 
-def rank_smoothed(players: dict[int, dict[str, float]], prior: tuple[int, int]) -> list[int]:
-    pw, pl = prior
+def points_of(entry: dict[str, float]) -> int:
+    wins = int(entry["wins"])
+    losses = int(entry["games"]) - wins
+    return wins * WIN_POINTS - losses * LOSS_POINTS
+
+
+def rank_points(players: dict[int, dict[str, float]]) -> list[int]:
+    """现行标准 v4：积分 → 胜场数 → 昵称 → Account ID（后两级只是显示顺序）。"""
     return sorted(
         players,
         key=lambda account: (
-            -(players[account]["wins"] + pw) / (players[account]["games"] + pw + pl),
+            -points_of(players[account]),
+            -int(players[account]["wins"]),
+            name_of(players, account),
+            account,
+        ),
+    )
+
+
+def rank_smoothed(players: dict[int, dict[str, float]], prior: tuple[int, int]) -> list[int]:
+    """已废弃的收缩式，只为对照名次。"""
+    pw, pl = prior
+    k = pw + pl
+    return sorted(
+        players,
+        key=lambda account: (
+            -(players[account]["wins"] + pw) / (players[account]["games"] + k),
             -players[account]["wins"],
             -players[account]["games"],
             name_of(players, account),
@@ -74,37 +100,33 @@ def rank_smoothed(players: dict[int, dict[str, float]], prior: tuple[int, int]) 
 
 
 def rank_net(players: dict[int, dict[str, float]]) -> list[int]:
-    """现行标准 v3：净胜场 → 胜场数 → 昵称 → Account ID。零参数、纯整数。"""
+    """上一版标准 v3：净胜场 → 胜场数。零参数，但没有积分规则那样偏重出勤。"""
     return sorted(
         players,
         key=lambda account: (
-            -(players[account]["wins"] - (players[account]["games"] - players[account]["wins"])),
-            -players[account]["wins"],
+            -(2 * int(players[account]["wins"]) - int(players[account]["games"])),
+            -int(players[account]["wins"]),
             name_of(players, account),
             account,
         ),
     )
 
 
-def header(title: str) -> None:
-    print(f"\n## {title}")
-
-
 def rank_labels(order: list[int], players: dict[int, dict[str, float]]) -> list[int]:
-    """并列名次：净胜场与胜场数都相同（即胜负两列完全相同）的人共用一个名次。
-
-    与前端 app.js 的 rankNumbers() 同一口径，页面上显示的数字就是这里算出来的。
-    """
+    """并列名次：胜、负两列完全相同的人共用一个名次（与 app.js 的 rankNumbers 同口径）。"""
     labels: list[int] = []
     for index, account in enumerate(order):
         wins, games = int(players[account]["wins"]), int(players[account]["games"])
         previous = order[index - 1] if index else None
         tied = previous is not None and (
-            int(players[previous]["wins"]) == wins
-            and int(players[previous]["games"]) == games
+            int(players[previous]["wins"]) == wins and int(players[previous]["games"]) == games
         )
         labels.append(labels[index - 1] if tied else index + 1)
     return labels
+
+
+def header(title: str) -> None:
+    print(f"\n## {title}")
 
 
 def report_scope(players, rounds, slots, metadata) -> None:
@@ -122,54 +144,100 @@ def report_scope(players, rounds, slots, metadata) -> None:
 
 
 def report_standings(players) -> None:
-    v3 = rank_net(players)
-    labels = rank_labels(v3, players)
+    current = rank_points(players)
+    labels = rank_labels(current, players)
     pos_v1 = {account: i + 1 for i, account in enumerate(rank_smoothed(players, V1))}
     pos_v2 = {account: i + 1 for i, account in enumerate(rank_smoothed(players, V2))}
-    header("现行标准 v3：净胜场 = 胜场 − 负场，同分比胜场数")
-    print("   名次 玩家                 胜 负 场  胜率  净胜场   v1名次 v2名次")
-    for i, account in enumerate(v3[:12]):
+    pos_net = {account: i + 1 for i, account in enumerate(rank_net(players))}
+    header(f"现行标准 v4：积分 = {WIN_POINTS}×胜 − {LOSS_POINTS}×负，同分比胜场数")
+    print("   名次 玩家                 胜 负 场  胜率   积分  净胜场   v1  v2  净胜场版")
+    for i, account in enumerate(current[:14]):
         entry = players[account]
         wins, games = int(entry["wins"]), int(entry["games"])
         losses = games - wins
         print(
             f"  {labels[i]:>5} {name_of(players, account):<18} {wins:>2} {losses:>2} {games:>3} "
-            f"{wins / games * 100:>4.0f}%   {wins - losses:>3}    {pos_v1[account]:>5} {pos_v2[account]:>5}"
+            f"{wins / games * 100:>4.0f}%  {wins * WIN_POINTS - losses * LOSS_POINTS:>5}   {wins - losses:>3}   "
+            f"{pos_v1[account]:>3} {pos_v2[account]:>3} {pos_net[account]:>4}"
         )
-    groups = collections.Counter((int(e["wins"]), int(e["games"]) - int(e["wins"])) for e in players.values())
-    tied_groups = {record: n for record, n in groups.items() if n > 1}
-    print(f"  并列：{len(tied_groups)} 组完全相同的战绩，涉及 {sum(tied_groups.values())} 人"
-          f"（最常见的一组 {max(tied_groups.values()) if tied_groups else 0} 人同战绩，共用一个名次）")
-    print("  名次数字按队列位置递增，并列不跳号；v1/v2 那两列是旧算法的严格先后，仅供对照")
-    moved_v2 = sum(1 for i, account in enumerate(v3) if pos_v2[account] != i + 1)
-    shift = max(abs(pos_v2[account] - i - 1) for i, account in enumerate(v3))
-    print(f"  与已废弃的 v2 相比：{moved_v2} 人名次不同，最大位移 {shift} 名")
-    top3 = v3[:3]
-    print(f"  前三名的场数：{[int(players[a]['games']) for a in top3]}（只打一场的人净胜场只有 1，无需人为场次门槛）")
+    groups = collections.Counter(
+        (int(e["wins"]), int(e["games"]) - int(e["wins"])) for e in players.values()
+    )
+    tied = {record: n for record, n in groups.items() if n > 1}
+    print(f"  并列：{len(tied)} 组完全相同的战绩，涉及 {sum(tied.values())} 人"
+          f"（最大一组 {max(tied.values()) if tied else 0} 人共用一个名次）")
+    same_score = collections.Counter(points_of(e) for e in players.values())
+    collide = sum(n for n in same_score.values() if n > 1)
+    print(f"  同分：{collide} 人落在有并列分数的分值上，同分内部按胜场数（也就是场数）排序")
+    moved = sum(1 for i, account in enumerate(current) if pos_net[account] != i + 1)
+    shift = max(abs(pos_net[account] - i - 1) for i, account in enumerate(current))
+    print(f"  与上一版「净胜场」相比：{moved} 人名次不同，最大位移 {shift} 名")
+    print(f"  前三名的场数：{[int(players[a]['games']) for a in current[:3]]}")
 
 
 def report_properties(players) -> None:
-    header("零参数标准的三条性质")
-    print("  1) 净胜场 = 场数 × (2×胜率 − 1)：五成选手净胜场恒为 0，刷场次不涨")
-    flat = [account for account, e in players.items() if e["wins"] * 2 == e["games"]]
-    print(f"     本快照里胜率正好五成的 {len(flat)} 人，净胜场都是 {sorted({int(e['wins'] * 2 - e['games']) for e in (players[a] for a in flat)})}")
-    print("  2) 再打一局的得失对每个人都是同一个 ±1，与当前名次、样本大小无关")
-    for wins, games in ((6, 7), (3, 3), (5, 9), (0, 3)):
-        losses = games - wins
-        print(f"     {wins}胜{losses}负：赢一局净胜场 {wins - losses} → {wins + 1 - losses}（+1）；输一局 → {wins - losses - 1}（−1）")
-    print("  3) 只打 1 场的人净胜场最多 1，靠规则本身就被压在榜尾，不需要管理员设门槛")
-    one_game = [account for account, e in players.items() if e["games"] == 1 and e["wins"] == 1]
-    order = rank_net(players)
+    order = rank_points(players)
     labels = rank_labels(order, players)
     rank_of = {account: labels[i] for i, account in enumerate(order)}
+    break_even = LOSS_POINTS / (WIN_POINTS + LOSS_POINTS)
+    header("积分规则的四条性质")
+    print(f"  1) 积分 = 场数 × ({WIN_POINTS + LOSS_POINTS}×胜率 − {LOSS_POINTS})，盈亏平衡胜率 = {break_even:.1%}")
+    above = sum(1 for e in players.values() if e["wins"] / e["games"] > break_even)
+    below = sum(1 for e in players.values() if e["wins"] / e["games"] < break_even)
+    zero = [name_of(players, a) for a, e in players.items() if points_of(e) == 0]
+    print(f"     高于这条线 {above} 人（多打就涨分），低于 {below} 人（多打会掉分）")
+    print(f"     积分正好 0 分（等于初始分）的有 {len(zero)} 人：{zero[:6] or '无'}")
+    print(f"  2) 每打一局的得失对每个人恒定：赢 +{WIN_POINTS}、输 −{LOSS_POINTS}，与当前名次、场数无关")
+    for wins, losses in ((6, 1), (3, 0), (5, 4), (0, 3)):
+        here = wins * WIN_POINTS - losses * LOSS_POINTS
+        print(f"     {wins}胜{losses}负 = {here} 分：赢一局 → {here + WIN_POINTS}（+{WIN_POINTS}）；输一局 → {here - LOSS_POINTS}（−{LOSS_POINTS}）")
+    print(f"     期望增益 = 场数 × ({WIN_POINTS + LOSS_POINTS}p − {LOSS_POINTS}) / 场数 = (80p − 30)，只跟真实胜率 p 有关，不随场数衰减")
+    print("  3) 同分时比胜场数；同分之下胜场多 ⟺ 场数多（w = (积分 + 30n)/80），所以同分处奖励出勤")
+    by_score: dict[int, list[int]] = collections.defaultdict(list)
+    for account in order:
+        by_score[points_of(players[account])].append(account)
+    pairs = [v for v in by_score.values() if len(v) > 1]
+    print(f"     本快照有 {len(pairs)} 个分值上有多人，例如：")
+    for group in pairs[:3]:
+        detail = "、".join(
+            f"{name_of(players, a)} {int(players[a]['wins'])}胜{int(players[a]['games']) - int(players[a]['wins'])}负（第 {rank_of[a]} 名）"
+            for a in group[:3]
+        )
+        print(f"     {points_of(players[group[0]])} 分：{detail}")
+    print(f"  4) 只打 1 场且全胜的人只有 {WIN_POINTS} 分，靠规则本身就在榜尾，不需要人为门槛")
+    one_game = [a for a, e in players.items() if e["games"] == 1 and e["wins"] == 1]
     print(f"     本快照 1 胜 0 负的 {len(one_game)} 人，名次 {sorted(rank_of[a] for a in one_game)}")
+
+
+def report_rule_sensitivity(players) -> None:
+    """把两个群规数字换成别的比例，榜单会怎么变：这就是「改群规」的实际后果。"""
+    header("积分比例的敏感性（这两个数字是唯一的自由度，必须写进群规）")
+    baseline = rank_points(players)
+    pos = {account: i + 1 for i, account in enumerate(baseline)}
+    for win, loss in ((50, 30), (50, 50), (30, 30), (50, 20), (100, 60), (3, 1)):
+        order = sorted(
+            players,
+            key=lambda a: (-(int(players[a]["wins"]) * win - int(players[a]["games"] - int(players[a]["wins"])) * loss),
+                           -int(players[a]["wins"]), name_of(players, a), a),
+        )
+        moved = sum(1 for i, a in enumerate(order) if pos[a] != i + 1)
+        top = order[0]
+        be = loss / (win + loss)
+        print(f"     +{win}/−{loss}（盈亏平衡 {be:.1%}）：与现行榜不同 {moved:>2} 人，榜首 {name_of(players, top)} "
+              f"{int(players[top]['wins'])}胜{int(players[top]['games']) - int(players[top]['wins'])}负")
+    six_one = next(a for a, e in players.items() if int(e["wins"]) == 6 and int(e["games"]) == 7)
+    eight_four = next((a for a, e in players.items() if int(e["wins"]) == 8 and int(e["games"]) == 12), None)
+    if eight_four:
+        print("     两个典型人：力量护腕 6胜1负 与 千秋 6胜8负…")
+    print("     6胜1负 与 8胜4负 谁在前，取决于比例：+50/−30 时 8胜4负(280) 在 6胜1负(270) 前面；净胜场时反过来")
+    print(f"     现行规则下：力量护腕（6胜1负）第 {pos[six_one]} 名")
 
 
 def report_why_not_smoothed() -> None:
     def kstar(w1, n1, w2, n2):
         return 2 * (w2 * n1 - w1 * n2) / (2 * (w1 - w2) + (n2 - n1))
 
-    header("为什么放弃需要参数的收缩式（v2 = (w+3)/(n+6)）")
+    header("为什么放弃带先验常数的 v1/v2（(w + k/2)/(n + k)）")
     print("  a) 反超所需的先验强度没有统一取值，随场数线性上涨：")
     for (w1, n1), (w2, n2) in [((3, 3), (6, 7)), ((5, 5), (12, 14)), ((10, 10), (25, 30)), ((15, 15), (30, 36))]:
         print(f"     {w2}胜{n2 - w2}负 压过 {w1}胜{n1 - w1}负 → 需要 k ≥ {kstar(w1, n1, w2, n2):.1f}")
@@ -186,7 +254,8 @@ def report_why_not_smoothed() -> None:
             k = prior[0] + prior[1]
             delta = (games / 2 - wins) / ((games + k) * (games + k + 1))
             print(f"     {wins}胜{losses}负 k={k}: 期望 Δ = {delta:+.4f}")
-    print("  d) 净胜场没有上面三条问题：参数为 0，且每局的期望增益 = 2p − 1，只跟真实胜率有关。")
+    print("  d) 1 胜 0 负 与 2 胜 1 负：收缩式里两者的交叉相乘之差恒等于 1，1 胜 0 负 永远在前，与 k 无关；")
+    print(f"     积分规则下是 {WIN_POINTS} 分 vs {2 * WIN_POINTS - LOSS_POINTS} 分，2 胜 1 负 在前，不需要任何系数。")
 
 
 def report_permutation(players, rounds) -> None:
@@ -229,24 +298,18 @@ def report_power() -> None:
 def report_attendance(players) -> None:
     busiest = max(e["games"] for e in players.values())
     header("出勤与主榜的边界")
-    print("  净胜场本身已经在奖励出勤（净胜场 = 场数 × 超额胜率），所以不需要人为资格线。")
-    print(f"  最活跃者 {busiest} 场；净胜场前五名的场数：{[int(players[a]['games']) for a in rank_net(players)[:5]]}")
-    print(f"  把出勤再加进主榜分数会立刻污染排序：score_v2 + λ × (场数 / {busiest})")
-    for lam in (0.0, 0.02, 0.06, 0.10):
-        order = sorted(
-            players,
-            key=lambda a: -(
-                (players[a]["wins"] + V2[0]) / (players[a]["games"] + V2[0] + V2[1])
-                + lam * players[a]["games"] / busiest
-            ),
-        )[:6]
+    print(f"  积分本身已经奖励出勤（积分 = 场数 × (80×胜率 − 30)），不需要再加出勤权重，也不需要人为资格线。")
+    print(f"  最活跃者 {busiest} 场；积分榜前五名的场数：{[int(players[a]['games']) for a in rank_points(players)[:5]]}")
+    print(f"  再把出勤按每场加分塞进主榜，榜就会变成「谁更闲」：积分 + μ × 场数")
+    for mu in (0, 5, 10, 20, 30):
+        order = sorted(players, key=lambda a: -(points_of(players[a]) + mu * players[a]["games"]))[:6]
         worst = min(players[a]["wins"] / players[a]["games"] for a in order)
-        print(f"     λ={lam:<5} 前六名里最低胜率 {worst:.0%}")
-    iron = sorted(players, key=lambda a: (-players[a]["games"], a))[:6]
+        print(f"     μ={mu:<3} 前六名里最低胜率 {worst:.0%}")
+    iron = sorted(players, key=lambda a: (-int(players[a]["games"]), -int(players[a]["wins"])))[:6]
     print("  独立的出勤榜（只比场数，只增不减）前列：")
-    for a in iron:
-        e = players[a]
-        print(f"     {name_of(players, a):<18} {int(e['games']):>2} 场（{int(e['wins'])}胜{int(e['games'] - e['wins'])}负）")
+    for account in iron:
+        entry = players[account]
+        print(f"     {name_of(players, account):<18} {int(entry['games']):>2} 场（{int(entry['wins'])}胜{int(entry['games']) - int(entry['wins'])}负）")
 
 
 def main() -> None:
@@ -254,6 +317,7 @@ def main() -> None:
     report_scope(players, rounds, slots, metadata)
     report_standings(players)
     report_properties(players)
+    report_rule_sensitivity(players)
     report_why_not_smoothed()
     report_permutation(players, rounds)
     report_power()

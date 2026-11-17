@@ -161,35 +161,7 @@ function applyBranding(data) {
 }
 
 function formatPercent(value) {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-// 排名标准：净胜场（胜场 − 负场），同分比胜场数。整条规则没有任何可调参数，
-// 每个人都能用表里的"胜""负"两列自己手算出来，管理员没有任何可以主观加减的地方。
-//
-// 为什么不用胜率：胜率把场数丢掉了，3 局全胜会排在 7 局 6 胜 1 负前面。
-// 为什么不用贝叶斯收缩（上一版 (w+3)/(n+6)）：那个 3 是需要人拍板的常数，
-// 一旦存在可调参数，排名就变成"管理员说了算"，群友有异议也没法对齐口径。
-//
-// 净胜场 = 胜场 − 负场 = 场数 × (2×胜率 − 1)，也就是"场数 × 超额胜率"，
-// 场数和质量同时计进去，且不需要任何系数：
-//   · 5 成的选手打满全场净胜场还是 0，刷场次占不到便宜；
-//   · 每多打一局的得失对每个人都是固定的 ±1，不会因为样本小就放大（收缩式会），
-//     所以不存在"为了保住名次而少打"的算计；
-//   · 1 局全胜净胜场只有 1，自动排在所有多赢的人后面，不需要人为设场次门槛。
-//
-// 全程用整数相减，不做除法，也就不存在浮点误差把同一个人排出两种顺序的问题。
-function comparePlayerRanking(left, right) {
-  const netLeft = left.wins - left.losses;
-  const netRight = right.wins - right.losses;
-  return (
-    netRight - netLeft ||
-    right.wins - left.wins ||
-    // 净胜场与胜场数都相等时，负场与总场数也就相等了（负场 = 胜场 − 净胜场），
-    // 剩下只有稳定排序作用：昵称字典序，再不行按 Account ID。
-    left.name.localeCompare(right.name, "zh-CN") ||
-    left.accountId - right.accountId
-  );
+  return value === null ? "—" : `${(value * 100).toFixed(1)}%`;
 }
 
 const TROPHY_ICON =
@@ -209,9 +181,30 @@ const PODIUM = [
   { label: "季军", className: "trophy-third" },
 ];
 
-// 名次只由战绩决定：净胜场与胜场数都相同的人，负场与总场数也相同，也就是战绩
-// 完全一样。标准里没有任何东西能区分他们，所以给出同一个名次（并列），
-// 表内的先后顺序只是显示顺序（昵称 → Account ID），不产生"谁压过谁"。
+// 联赛积分规则（群规，写死在这里，页面说明里也写着）：赢一局 +50 分，输一局 −30 分。
+// 两个数字是群规的一部分，不是"管理员可调的系数"：任何人用表里的胜、负两列都能
+// 复算出积分和名次。换算成胜率看：积分 = 场数 × (80 × 胜率 − 30)，盈亏平衡胜率
+// 是 30 / 80 = 37.5%，也就是说真实胜率高于 37.5% 的人多打就涨分。
+const POINTS_PER_WIN = 50;
+const POINTS_PER_LOSS = 30;
+
+function pointsOf(player) {
+  return player.wins * POINTS_PER_WIN - player.losses * POINTS_PER_LOSS;
+}
+
+// 排序键：积分 → 胜场数。50:30 会让不同战绩算出同一个分（3 胜 0 负与 6 胜 5 负都是
+// 150 分），同分用胜场数拆开：积分相等时胜场多 ⟺ 场数多（w = (积分 + 30n)/80），
+// 所以这一条还是在奖励出勤。积分与胜场数都相等时负场也就相等，也就是战绩完全一样：
+// 那时给出同一个名次（并列），昵称与 Account ID 只是显示顺序。
+function comparePlayerRanking(left, right) {
+  return (
+    pointsOf(right) - pointsOf(left) ||
+    right.wins - left.wins ||
+    left.name.localeCompare(right.name, "zh-CN") ||
+    left.accountId - right.accountId
+  );
+}
+
 function rankNumbers(players) {
   const ranks = [];
   players.forEach((player, index) => {
@@ -431,8 +424,6 @@ function calculate(matches) {
   }
 
   const byId = new Map(players.map((player) => [player.accountId, player]));
-  // 综合组队胜率：每段队友关系的胜率各算一个样本再取平均。不按共同场次加权，
-  // 否则结果精确等于个人胜率（一场五人队正好贡献 4 段关系），就没有额外信息了。
   const teamById = new Map();
   for (const player of players) {
     const partners = (partnersOf.get(player.accountId) || []).sort(
@@ -441,10 +432,7 @@ function calculate(matches) {
     );
     const games = partners.reduce((sum, partner) => sum + partner.games, 0);
     const wins = partners.reduce((sum, partner) => sum + partner.wins, 0);
-    const meanRate = partners.length
-      ? partners.reduce((sum, partner) => sum + partner.wins / partner.games, 0) / partners.length
-      : null;
-    teamById.set(player.accountId, { partners, games, wins, meanRate });
+    teamById.set(player.accountId, { partners, games, wins });
   }
 
   return { players, pairs, teamById, byId };
@@ -455,7 +443,7 @@ function makeIdButton(player, team) {
   button.type = "button";
   button.className = "id-link";
   button.textContent = String(player.accountId);
-  button.setAttribute("aria-label", `查看 ${player.name}（${player.accountId}）的组队胜率明细`);
+  button.setAttribute("aria-label", `查看 ${player.name}（${player.accountId}）的同队战绩明细`);
   button.addEventListener("click", () => openPartnerDialog(player, team));
   return button;
 }
@@ -467,7 +455,7 @@ function renderStats(players, teamById) {
   const ranks = rankNumbers(players);
   players.forEach((player, index) => {
     const row = document.createElement("tr");
-    const team = teamById.get(player.accountId) || { partners: [], games: 0, meanRate: null };
+    const team = teamById.get(player.accountId) || { partners: [], games: 0, wins: 0 };
     row.append(makeRankCell(ranks[index], ranks[index] === ranks[index - 1]));
     row.append(makePlayerCell(player, team));
     const idCell = document.createElement("td");
@@ -477,8 +465,11 @@ function renderStats(players, teamById) {
     row.append(makeCell("td", String(player.wins)));
     row.append(makeCell("td", String(player.losses)));
     row.append(makeCell("td", String(player.total), "total-games"));
+    // 排序用的积分直接显示出来：任何人拿同一张表的胜、负两列都能复算这一列和名次。
+    row.append(makeCell("td", String(pointsOf(player)), "points-cell"));
+    // 只剩一列胜率：内战都是组队打的，所以"这名玩家的胜率"就是他的联赛胜率。
+    // 原来那个按队友关系取平均的综合组队胜率已经去掉，同队明细在这个弹窗里。
     row.append(makeRateCell(player.wins / player.total));
-    row.append(makeRateCell(team.meanRate));
     elements.statsBody.append(row);
   });
 }
@@ -493,7 +484,7 @@ function rateClass(rate) {
 function makePlayerCell(player, team) {
   const cell = document.createElement("td");
   cell.className = "player-name";
-  const info = team || state.teamById.get(player.accountId) || { partners: [], games: 0, meanRate: null };
+  const info = team || state.teamById.get(player.accountId) || { partners: [], games: 0, wins: 0 };
   // 单元格里再套一层 flex 容器：直接把 td 设成 flex 会让底边框不再跟行底对齐。
   const wrapper = document.createElement("div");
   wrapper.className = "player-cell";
@@ -578,16 +569,17 @@ function renderPartnerRows() {
 }
 
 function openPartnerDialog(player, team) {
-  const { partners, games, meanRate } = team || state.teamById.get(player.accountId) || {
+  const { partners, games } = team || state.teamById.get(player.accountId) || {
     partners: [],
     games: 0,
-    meanRate: null,
   };
   elements.partnerAvatar.replaceChildren(makeAvatar(player));
   elements.partnerName.textContent = player.name;
   elements.partnerAccount.textContent = String(player.accountId);
   elements.partnerMeta.textContent = partners.length
-    ? `队友 ${partners.length} 人 · 同队出场 ${games} 场 · 组队胜率 ${formatPercent(meanRate)}`
+    ? `队友 ${partners.length} 人 · 同队出场 ${games} 场 · 本人联赛胜率 ${formatPercent(
+        player.total ? player.wins / player.total : null,
+      )}`
     : "这个时间范围里还没有和任何人同队出场。";
 
   elements.partnerBody.replaceChildren();

@@ -788,6 +788,13 @@ th:last-child {
   font-size: 0.86rem;
 }
 
+/* 积分 = 胜场 × 50 − 负场 × 30，是排序用的那一列，所以视觉上比胜负两列重一点。 */
+.points-cell {
+  color: var(--red-900);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 .rate-pill {
   display: inline-block;
   min-width: 68px;
