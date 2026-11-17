@@ -215,6 +215,58 @@ def report_expected_shift(players: dict[int, dict[str, float]]) -> None:
             )
 
 
+def report_rank_jitter(players: dict[int, dict[str, float]]) -> None:
+    """定理 5.2 的名次版本：现榜前三"再打一局"的期望名次抖动，v1 与 v2 对照。
+
+    一局按 50% 胜率算（当前样本量下估不出更强的先验，见置换检验），
+    即取"多赢一局"与"多输一局"两种名次平均值。
+    """
+
+    def order_with_extra_game(prior: int, hero: int, hero_won: bool) -> list[int]:
+        def wins_of(account: int) -> int:
+            return players[account]["wins"] + (1 if account == hero and hero_won else 0)
+
+        def games_of(account: int) -> int:
+            return players[account]["games"] + (1 if account == hero else 0)
+
+        return sorted(
+            players,
+            key=lambda account: (
+                -score(wins_of(account), games_of(account), prior, prior),
+                -wins_of(account),
+                -games_of(account),
+                str(players[account]["name"]),
+                account,
+            ),
+        )
+
+    header("定理 5.2 的名次版本：现榜前三再打一局的期望名次抖动（按 50% 胜率）")
+    for prior, label in ((1, "v1 k=2"), (PRIOR_WINS, "v2 k=6")):
+        base = rank(players, prior, prior)
+        shifts = []
+        for hero in base[:3]:
+            here = base.index(hero) + 1
+            won = order_with_extra_game(prior, hero, True).index(hero) + 1
+            lost = order_with_extra_game(prior, hero, False).index(hero) + 1
+            shifts.append(abs(0.5 * won + 0.5 * lost - here))
+        print(f"  {label}: 前三名平均挪 {sum(shifts) / len(shifts):.1f} 名（逐人 {[f'{s:.2f}' for s in shifts]}）")
+
+    for prior in (1, PRIOR_WINS):
+        base = rank(players, prior, prior)
+        up = down = flat = 0
+        for hero in base:
+            here = base.index(hero) + 1
+            won = order_with_extra_game(prior, hero, True).index(hero) + 1
+            lost = order_with_extra_game(prior, hero, False).index(hero) + 1
+            delta = 0.5 * won + 0.5 * lost - here
+            up, down, flat = (
+                (up + 1, down, flat) if delta < -0.05
+                else (up, down + 1, flat) if delta > 0.05
+                else (up, down, flat + 1)
+            )
+        print(f"  {label}: 全员再打一局 → 期望涨 {up} 人 / 跌 {down} 人 / 基本不动 {flat} 人")
+
+
 def main() -> None:
     players, rounds, slots = load_standings()
     report_basics(players, rounds, slots)
@@ -222,6 +274,7 @@ def main() -> None:
     report_critical_k()
     report_discrimination()
     report_expected_shift(players)
+    report_rank_jitter(players)
     report_permutation(players, rounds)
     report_power()
     report_attendance(players)
