@@ -14,12 +14,12 @@
     "footer": "懂王杯光荣榜 · 胜负皆尽兴，开黑常有喜",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-18T19:17:18.197335+00:00",
+  "generated_at_utc": "2026-11-19T02:36:17.421915+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
     "match_ids_returned": 25,
-    "matches_available": 24,
+    "matches_available": 23,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -27,6 +27,10 @@
     "anonymous_daily_quota_exhausted": false,
     "manual_override_match_ids": [],
     "excluded_matches": [
+      {
+        "match_id": 9095272688,
+        "reason": "config exclude_match_ids"
+      },
       {
         "match_id": 9085825973,
         "reason": "game_mode 21 不是内战（solo 房间）"
@@ -2231,116 +2235,6 @@
           "kills": 2,
           "deaths": 25,
           "assists": 26
-        }
-      ]
-    },
-    {
-      "match_id": 9095272688,
-      "league_id": 19905,
-      "start_time": 1795003963,
-      "duration": 3081,
-      "radiant_win": true,
-      "game_mode": 2,
-      "players": [
-        {
-          "account_id": 220265151,
-          "personaname": "抖音DOTA2小面羊",
-          "display_name": null,
-          "player_slot": 0,
-          "hero_id": 119,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 373019441,
-          "personaname": "if",
-          "display_name": null,
-          "player_slot": 1,
-          "hero_id": 93,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 1362249826,
-          "personaname": "小林直玄",
-          "display_name": null,
-          "player_slot": 2,
-          "hero_id": 113,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 173581286,
-          "personaname": "nika",
-          "display_name": null,
-          "player_slot": 3,
-          "hero_id": 9,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 138704638,
-          "personaname": "小绿",
-          "display_name": null,
-          "player_slot": 4,
-          "hero_id": 78,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 195588330,
-          "personaname": "KKK",
-          "display_name": null,
-          "player_slot": 128,
-          "hero_id": 12,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 123942225,
-          "personaname": "胆小菇QAQ",
-          "display_name": null,
-          "player_slot": 129,
-          "hero_id": 64,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 896167201,
-          "personaname": "落颜公子羽",
-          "display_name": null,
-          "player_slot": 130,
-          "hero_id": 145,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 129964895,
-          "personaname": "Monkey see Monkey do",
-          "display_name": "Monkey see Monkey do",
-          "player_slot": 131,
-          "hero_id": 84,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
-        },
-        {
-          "account_id": 136312911,
-          "personaname": "抖音Dota2.Unique_K",
-          "display_name": null,
-          "player_slot": 132,
-          "hero_id": 104,
-          "kills": 0,
-          "deaths": 0,
-          "assists": 0
         }
       ]
     },
