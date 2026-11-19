@@ -61,6 +61,14 @@ class FakeClient:
         return self.responses[path]
 
 
+def make_zero_kda_match(match_id: int, *, league_id: int = 19224) -> dict[str, Any]:
+    """OpenDota's answer for a game it could not read: every slot is 0/0/0."""
+    match = make_match(match_id, league_id=league_id)
+    for player in match["players"]:
+        player.update({"kills": 0, "deaths": 0, "assists": 0})
+    return match
+
+
 def test_normalise_match_keeps_active_roster() -> None:
     match = normalise_match(make_match(1), 19224)
 
@@ -1007,6 +1015,138 @@ def test_excluded_match_ids_are_never_requested(tmp_path: Path) -> None:
     ]
 
 
+def test_match_with_zero_kda_in_every_slot_is_excluded(tmp_path: Path) -> None:
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1, 2],
+            "/matches/1": make_match(1, league_id=19905),
+            "/matches/2": make_zero_kda_match(2, league_id=19905),
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [1]
+    assert payload["metadata"]["match_ids_returned"] == 2
+    assert payload["metadata"]["excluded_matches"][0]["match_id"] == 2
+    assert "exclude_zero_kda_matches" in payload["metadata"]["excluded_matches"][0]["reason"]
+
+
+def test_one_non_zero_slot_keeps_the_match(tmp_path: Path) -> None:
+    """One assist anywhere means real combat data, so the game stays on the board."""
+    nearly_empty = make_zero_kda_match(2, league_id=19905)
+    nearly_empty["players"][4]["assists"] = 1
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1, 2],
+            "/matches/1": make_match(1, league_id=19905),
+            "/matches/2": nearly_empty,
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [1, 2]
+    assert payload["metadata"]["excluded_matches"] == []
+
+
+def test_missing_kda_is_not_read_as_zero_kda(tmp_path: Path) -> None:
+    """A roster we never got numbers for shows `—`; it is not excluded as 0/0/0."""
+    blind = make_zero_kda_match(2, league_id=19905)
+    for player in blind["players"]:
+        for field in ("kills", "deaths", "assists"):
+            player[field] = None
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1, 2],
+            "/matches/1": make_match(1, league_id=19905),
+            "/matches/2": blind,
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [1, 2]
+    assert payload["metadata"]["excluded_matches"] == []
+
+
+def test_zero_kda_rule_can_be_switched_off(tmp_path: Path) -> None:
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [1, 2],
+            "/matches/1": make_match(1, league_id=19905),
+            "/matches/2": make_zero_kda_match(2, league_id=19905),
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905, "exclude_zero_kda_matches": False},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [1, 2]
+    assert payload["metadata"]["excluded_matches"] == []
+
+
+def test_zero_kda_rule_applies_to_matches_already_in_the_snapshot(tmp_path: Path) -> None:
+    """The rule is retroactive, and drops the cached game without spending a request."""
+    output = tmp_path / "league.json"
+    write_snapshot(
+        output,
+        {
+            "league_id": 19905,
+            "matches": [
+                normalise_match(make_zero_kda_match(2, league_id=19905), 19905),
+                normalise_match(make_match(3, league_id=19905), 19905),
+            ],
+        },
+    )
+    client = FakeClient(
+        {
+            "/leagues/19905": {"name": "懂王杯"},
+            "/leagues/19905/matchIds": [2, 3],
+            "/matches/3": make_match(3, league_id=19905),
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19905,
+        output_path=output,
+        refresh_recent=1,
+        client=client,  # type: ignore[arg-type]
+        config={**DEFAULT_CONFIG, "league_id": 19905},
+    )
+
+    assert [match["match_id"] for match in payload["matches"]] == [3]
+    assert "/matches/2" not in client.requested
+    assert [item["match_id"] for item in payload["metadata"]["excluded_matches"]] == [2]
+
+
 def test_exclusion_applies_to_matches_already_in_the_snapshot(tmp_path: Path) -> None:
     output = tmp_path / "league.json"
     write_snapshot(
@@ -1061,5 +1201,30 @@ def test_load_config_rejects_non_numeric_exclusions(tmp_path: Path) -> None:
         load_config(path)
     except LeagueCollectionError as error:
         assert "exclude_match_ids" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+def test_load_config_pins_the_zero_kda_rule_on(tmp_path: Path) -> None:
+    """The rule is a default, so a config that predates it still drops 0/0/0 games."""
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"league_id": 19905}), encoding="utf-8")
+
+    assert load_config(path)["exclude_zero_kda_matches"] is True
+
+    path.write_text(
+        json.dumps({"league_id": 19905, "exclude_zero_kda_matches": False}), encoding="utf-8"
+    )
+    assert load_config(path)["exclude_zero_kda_matches"] is False
+
+
+def test_load_config_rejects_a_non_boolean_zero_kda_switch(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"exclude_zero_kda_matches": "yes"}), encoding="utf-8")
+
+    try:
+        load_config(path)
+    except LeagueCollectionError as error:
+        assert "exclude_zero_kda_matches" in str(error)
     else:
         raise AssertionError("expected LeagueCollectionError")

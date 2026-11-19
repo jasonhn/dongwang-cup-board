@@ -29,6 +29,10 @@ HERO_INTERNAL_PREFIX = "npc_dota_hero_"
 # Valve's solo queue rooms (1v1 mid) carry the league tag too, but they are not
 # 内战, so the board ignores those game modes unless the config says otherwise.
 DEFAULT_EXCLUDE_GAME_MODES = [21]
+# OpenDota answers a game it could not read with 0/0/0 in every roster slot, which
+# carries no combat data at all. Those games are dropped by default, and - like every
+# other exclusion - the match id plus the reason is recorded in metadata.excluded_matches.
+DEFAULT_EXCLUDE_ZERO_KDA = True
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "collect_mode": "league",
@@ -46,6 +50,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     # Games the league aggregates but the board should ignore.
     "exclude_game_modes": DEFAULT_EXCLUDE_GAME_MODES,
     "exclude_match_ids": [],
+    "exclude_zero_kda_matches": DEFAULT_EXCLUDE_ZERO_KDA,
     "max_tournament_matches": DEFAULT_MAX_TOURNAMENT_MATCHES,
     # Only ever read from the environment; never commit a key to this file.
     "steam_web_api_key": "",
@@ -381,6 +386,15 @@ def _int_list(value: Any, field: str, default: list[int]) -> list[int]:
         ) from error
 
 
+def _bool_option(value: Any, field: str, default: bool) -> bool:
+    """Read a switch-like config field. Anything but a JSON boolean is a config error."""
+    if value is None:
+        return default
+    if not isinstance(value, bool):
+        raise LeagueCollectionError(f"config.json field {field} must be true or false")
+    return value
+
+
 def load_config(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise LeagueCollectionError(f"Config file not found: {path}")
@@ -431,6 +445,9 @@ def load_config(path: Path) -> dict[str, Any]:
     )
     config["exclude_match_ids"] = _int_list(
         config.get("exclude_match_ids"), "exclude_match_ids", []
+    )
+    config["exclude_zero_kda_matches"] = _bool_option(
+        config.get("exclude_zero_kda_matches"), "exclude_zero_kda_matches", DEFAULT_EXCLUDE_ZERO_KDA
     )
     config["steam_web_api_key"] = str(config.get("steam_web_api_key") or "").strip()
     return config
@@ -938,6 +955,29 @@ def _has_full_roster_stats(match: dict[str, Any]) -> bool:
     )
 
 
+def _has_zero_kda_only(match: dict[str, Any]) -> bool:
+    """True when every roster slot answered with 0 kills, 0 deaths and 0 assists.
+
+    A game where nobody killed, died or assisted is not a goalless draw - it is
+    OpenDota's answer for a match it could not read, so the board treats it as
+    unusable data. A slot that answered with *nothing* (None) does not count as a
+    zero, so a roster whose numbers we never got stays on the board and shows `—`
+    instead of being dropped.
+    """
+    players = match.get("players")
+    if not isinstance(players, list) or not players:
+        return False
+    numbers = [
+        _stat_int(player.get(field))
+        for player in players
+        if isinstance(player, dict)
+        for field in ("kills", "deaths", "assists")
+    ]
+    if not numbers or any(value is None for value in numbers):
+        return False
+    return sum(numbers) == 0
+
+
 def _collect_matches(
     *,
     match_ids: list[int],
@@ -951,6 +991,7 @@ def _collect_matches(
     overrides: dict[int, dict[str, Any]] | None = None,
     exclude_ids: list[int] | None = None,
     exclude_game_modes: list[int] | None = None,
+    exclude_zero_kda: bool = DEFAULT_EXCLUDE_ZERO_KDA,
 ) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     existing = _load_existing(output_path, cache_league_id)
     refresh_ids = set(match_ids[-max(0, refresh_recent) :])
@@ -968,12 +1009,20 @@ def _collect_matches(
 
     def skipped(match_id: int, match: dict[str, Any]) -> bool:
         game_mode = int(match.get("game_mode") or 0)
-        if game_mode not in skip_modes:
-            return False
-        excluded.append(
-            {"match_id": int(match_id), "reason": f"game_mode {game_mode} 不是内战（solo 房间）"}
-        )
-        return True
+        if game_mode in skip_modes:
+            excluded.append(
+                {"match_id": int(match_id), "reason": f"game_mode {game_mode} 不是内战（solo 房间）"}
+            )
+            return True
+        if exclude_zero_kda and _has_zero_kda_only(match):
+            excluded.append(
+                {
+                    "match_id": int(match_id),
+                    "reason": "全体选手 K/D/A 均为 0（无战斗数据），exclude_zero_kda_matches",
+                }
+            )
+            return True
+        return False
 
     for match_id in kept_ids:
         cached = existing.get(match_id)
@@ -1098,6 +1147,11 @@ def collect_league_data(
         overrides=overrides,
         exclude_ids=resolved.get("exclude_match_ids", []),
         exclude_game_modes=resolved.get("exclude_game_modes", DEFAULT_EXCLUDE_GAME_MODES),
+        exclude_zero_kda=_bool_option(
+            resolved.get("exclude_zero_kda_matches"),
+            "exclude_zero_kda_matches",
+            DEFAULT_EXCLUDE_ZERO_KDA,
+        ),
     )
 
     return _build_payload(
@@ -1138,6 +1192,11 @@ def collect_manual_data(
         overrides=overrides,
         exclude_ids=resolved.get("exclude_match_ids", []),
         exclude_game_modes=resolved.get("exclude_game_modes", DEFAULT_EXCLUDE_GAME_MODES),
+        exclude_zero_kda=_bool_option(
+            resolved.get("exclude_zero_kda_matches"),
+            "exclude_zero_kda_matches",
+            DEFAULT_EXCLUDE_ZERO_KDA,
+        ),
     )
 
     return _build_payload(
@@ -1214,6 +1273,11 @@ def collect_tournament_data(
         exclude_ids=_int_list(config.get("exclude_match_ids"), "exclude_match_ids", []),
         exclude_game_modes=_int_list(
             config.get("exclude_game_modes"), "exclude_game_modes", DEFAULT_EXCLUDE_GAME_MODES
+        ),
+        exclude_zero_kda=_bool_option(
+            config.get("exclude_zero_kda_matches"),
+            "exclude_zero_kda_matches",
+            DEFAULT_EXCLUDE_ZERO_KDA,
         ),
     )
 
