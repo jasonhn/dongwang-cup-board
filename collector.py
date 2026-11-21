@@ -59,6 +59,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "subtitle": "Dota 2 内战战绩",
         "kicker": "内战有喜 · 荣耀登榜",
         "footer": "内战光荣榜 · 胜负皆尽兴，开黑常有喜",
+        # 群专属说明横幅（app.js 渲染在标题下方）；group_notice 留空则不显示横幅，
+        # group_wechat 是横幅上「复制微信号」按钮复制的内容，留空则不显示按钮。
+        "group_notice": "",
+        "group_wechat": "",
         "description": "Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。",
     },
 }

@@ -10,8 +10,8 @@
     />
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20261117-3" />
-    <script src="./app.js?v=20261117-8" type="module"></script>
+    <link rel="stylesheet" href="./styles.css?v=20261121-1" />
+    <script src="./app.js?v=20261121-1" type="module"></script>
   </head>
   <body>
     <div class="fireworks" aria-hidden="true"></div>
@@ -36,6 +36,21 @@
           <span class="hero-status" id="heroStatus">正在迎接战报……</span>
           <span class="seal">荣</span>
         </div>
+        <aside class="group-banner" id="groupBanner" role="note">
+          <span class="group-banner-seal" aria-hidden="true">群</span>
+          <span class="group-banner-text" id="groupBannerText"
+            >本页面为DOTA2泉水泡茶俱乐部微信群专属活动页面，进群请加微：<strong>Greg-Mind</strong></span
+          >
+          <button
+            type="button"
+            class="group-banner-copy"
+            id="groupWechatCopy"
+            data-wechat="Greg-Mind"
+            data-label="复制微信号"
+          >
+            复制微信号
+          </button>
+        </aside>
       </div>
     </header>
 

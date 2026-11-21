@@ -1,5 +1,7 @@
 const DEFAULT_TIME_ZONE = "Asia/Shanghai";
 const DAY_SECONDS = 86_400;
+const DEFAULT_GROUP_NOTICE = "本页面为DOTA2泉水泡茶俱乐部微信群专属活动页面，进群请加微：Greg-Mind";
+const DEFAULT_GROUP_WECHAT = "Greg-Mind";
 
 const elements = {
   heroStatus: document.querySelector("#heroStatus"),
@@ -37,6 +39,9 @@ const elements = {
   heroTitle: document.querySelector("#heroTitle"),
   heroSubtitle: document.querySelector("#heroSubtitle"),
   footerLine: document.querySelector("#footerLine"),
+  groupBanner: document.querySelector("#groupBanner"),
+  groupBannerText: document.querySelector("#groupBannerText"),
+  groupWechatCopy: document.querySelector("#groupWechatCopy"),
   sourceText: document.querySelector("#sourceText"),
   fromTzLabel: document.querySelector("#fromTzLabel"),
   toTzLabel: document.querySelector("#toTzLabel"),
@@ -154,10 +159,83 @@ function applyBranding(data) {
   if (elements.footerLine) {
     elements.footerLine.textContent = site.footer || `${title} · 胜负皆尽兴，开黑常有喜`;
   }
+  const notice = String(site.group_notice ?? DEFAULT_GROUP_NOTICE).trim();
+  // 只有仍在用内置默认文案时才顺带复制内置微信号，换成别的群文案就不要误人加错人。
+  const fallbackWechat = notice === DEFAULT_GROUP_NOTICE ? DEFAULT_GROUP_WECHAT : "";
+  renderGroupNotice(notice, String(site.group_wechat ?? fallbackWechat).trim());
 
   const label = `（${timeZoneLabel()}）`;
   if (elements.fromTzLabel) elements.fromTzLabel.textContent = label;
   if (elements.toTzLabel) elements.toTzLabel.textContent = label;
+}
+
+function renderGroupNotice(notice, wechat) {
+  const banner = elements.groupBanner;
+  const text = elements.groupBannerText;
+  if (!banner || !text) return;
+  banner.hidden = !notice;
+  if (!notice) return;
+
+  text.textContent = "";
+  const at = wechat ? notice.indexOf(wechat) : -1;
+  if (at === -1) {
+    text.textContent = notice;
+  } else {
+    const id = document.createElement("strong");
+    id.textContent = wechat;
+    text.append(notice.slice(0, at), id, notice.slice(at + wechat.length));
+  }
+
+  const copy = elements.groupWechatCopy;
+  if (copy) {
+    copy.dataset.wechat = wechat;
+    copy.hidden = !wechat;
+  }
+}
+
+let copyResetTimer;
+
+async function copyText(value) {
+  const clipboard = globalThis.navigator?.clipboard;
+  if (clipboard?.writeText) {
+    try {
+      await clipboard.writeText(value);
+      return true;
+    } catch {
+      // 非安全上下文或用户拒绝授权时退化成下面的 execCommand。
+    }
+  }
+  const field = document.createElement("textarea");
+  field.value = value;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.select();
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  field.remove();
+  return copied;
+}
+
+function bindGroupNotice() {
+  const copy = elements.groupWechatCopy;
+  if (!copy) return;
+  copy.addEventListener("click", async () => {
+    const wechat = copy.dataset.wechat || DEFAULT_GROUP_WECHAT;
+    const copied = await copyText(wechat);
+    clearTimeout(copyResetTimer);
+    copy.classList.toggle("is-copied", copied);
+    copy.textContent = copied ? `已复制 ${wechat}` : `微信号：${wechat}`;
+    copyResetTimer = setTimeout(() => {
+      copy.classList.remove("is-copied");
+      copy.textContent = copy.dataset.label || "复制微信号";
+    }, 2400);
+  });
 }
 
 function formatPercent(value) {
@@ -1117,4 +1195,5 @@ async function load() {
 
 bindPartnerDialog();
 bindArchive();
+bindGroupNotice();
 load();

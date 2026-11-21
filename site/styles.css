@@ -76,6 +76,7 @@ button {
   z-index: 1;
   min-height: 360px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   overflow: hidden;
   border-bottom: 4px solid var(--gold-500);
@@ -202,6 +203,79 @@ button {
 .hero-status {
   color: rgba(255, 245, 211, 0.82);
   font-size: 0.9rem;
+}
+
+.group-banner {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 13px;
+  margin: 24px auto 0;
+  padding: 11px 16px 11px 12px;
+  border: 1px solid rgba(255, 213, 107, 0.72);
+  border-radius: 999px;
+  color: #fff3cf;
+  background: linear-gradient(180deg, rgba(151, 0, 24, 0.9), rgba(74, 0, 14, 0.86));
+  box-shadow: 0 12px 26px rgba(43, 0, 6, 0.34), inset 0 1px 0 rgba(255, 231, 160, 0.2);
+  text-align: left;
+  font-size: clamp(0.82rem, 1.3vw, 0.95rem);
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.group-banner[hidden],
+.group-banner-copy[hidden] {
+  display: none;
+}
+
+.group-banner-seal {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid var(--gold-300);
+  border-radius: 50%;
+  color: var(--gold-300);
+  font-family: STKaiti, KaiTi, serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.group-banner-text {
+  color: rgba(255, 243, 207, 0.92);
+}
+
+.group-banner-text strong {
+  color: var(--gold-300);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.group-banner-copy {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border: 1px solid var(--gold-300);
+  border-radius: 999px;
+  color: #4b0010;
+  background: linear-gradient(180deg, var(--gold-300), var(--gold-500));
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transition: filter 0.15s ease;
+}
+
+.group-banner-copy:hover,
+.group-banner-copy:focus-visible {
+  filter: brightness(1.08);
+}
+
+.group-banner-copy.is-copied {
+  color: #fff3cf;
+  background: rgba(74, 0, 14, 0.92);
 }
 
 .lantern {
@@ -1101,6 +1175,20 @@ footer p {
 
   .hero-kicker {
     letter-spacing: 0.12em;
+  }
+
+  .group-banner {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    padding: 13px 14px;
+    border-radius: 18px;
+    text-align: center;
+  }
+
+  .group-banner-text {
+    flex: 1 1 100%;
   }
 
   .lantern {
