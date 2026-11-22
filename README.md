@@ -56,6 +56,7 @@
 | `refresh_recent` | 每次刷新重新抓最近 N 场（补全还没解析完的比赛），其余用仓库里已有的缓存，省 API 额度 |
 | `time_zone` | 看板显示与输入框用的时区，例如 `Asia/Shanghai` |
 | `names_file` | 群昵称映射文件 |
+| `account_aliases` | 账号合并表，形如 `{"小号": 主号}`：同一个人的两个 Account ID 只有写在这里才会并成一个人，看板只认主号，见下面「一个玩家一个 Account ID」 |
 | `avatars_file` | Steam 头像缓存，键是 `account_id`，值是头像 URL；空字符串代表“这个人没有头像，别再抓” |
 | `heroes_file` | 英雄名缓存，键是 `hero_id`，值形如 `{"zh": "裂魂人", "en": "Spirit Breaker", "slug": "spirit_breaker"}`，给战报存档显示英雄用 |
 | `overrides_file` | 手工补录文件（默认 `overrides.json`），用来录入公开接口查不到的比赛，见下面「手工补录」 |
@@ -220,6 +221,29 @@ STEAM_WEB_API_KEY=你的Key .venv/bin/python collector.py --mode tournament --le
 ```
 
 `account_id` 就是看板表格里 Account ID 那一列（手机上一列放不下，它显示在玩家名字下面，同样可以点击），也可以从 OpenDota 玩家页面 URL 里拿到。设了昵称后，玩家改名不会影响看板显示；没设的玩家继续显示 Steam 昵称。
+
+## 一个玩家一个 Account ID（账号合并）
+
+看板把 **Account ID 当成人的唯一身份**：一个玩家只对应一个 Account ID，战绩默认按 Account ID 统计。两件容易混在一起的事要分开看：
+
+- **同一个 Account ID 改过好几个 Steam 昵称**：本来就是同一个人，战绩自动在一起，看板显示**最近那场比赛里用的名字**；如果 `names.json` 给他设了群昵称，群昵称优先，不受改名影响。
+- **同一个人手里有两个 Account ID**：看板猜不出来，也不该靠名字像不像去猜。只有写在 `config.json` 里的才合并：
+
+```json
+"account_aliases": {
+  "255862047": 1362249826
+}
+```
+
+键是被并掉的号，值是对外显示的主号：前者的胜负、积分、K/D/A 全部并进后者，看板和队友详情里从此只出现主号那一个入口。再多一个号就再加一行；`{"a": 2, "2": 1}` 这种链条会自动拉成 `a → 1`，写成环、或者把号并进自己，采集会直接报错而不是偷偷乱并。
+
+改完配置，已经采集好的数据**不用重新联网采集**，就地归一一次就行（不花 API 额度，也不改动「数据更新时间」）：
+
+```bash
+.venv/bin/python collector.py --rekey-only
+```
+
+以后每次采集都按同一套规则归一，所以这一步只在刚改完配置后跑一次。合并关系也会写进快照的 `metadata.account_aliases`，日后想查“谁被并到谁头上”有据可查。
 
 ## 玩家头像
 

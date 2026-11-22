@@ -37,7 +37,10 @@
         "match_id": 9085825973,
         "reason": "game_mode 21 不是内战（solo 房间）"
       }
-    ]
+    ],
+    "account_aliases": {
+      "255862047": 1362249826
+    }
   },
   "matches": [
     {
@@ -219,7 +222,7 @@
           "assists": 17
         },
         {
-          "account_id": 255862047,
+          "account_id": 1362249826,
           "personaname": "节奏带师",
           "display_name": null,
           "player_slot": 129,

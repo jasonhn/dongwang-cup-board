@@ -6,6 +6,9 @@
   "output": "site/data/league.json",
   "time_zone": "Asia/Shanghai",
   "names_file": "names.json",
+  "account_aliases": {
+    "255862047": 1362249826
+  },
   "avatars_file": "site/data/avatars.json",
   "max_new_avatars": 80,
   "heroes_file": "site/data/heroes.json",

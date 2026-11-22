@@ -283,3 +283,80 @@ def test_table_columns_and_rendering_match_the_code() -> None:
     # 排序用的积分必须是表里看得见的一列，否则群友没法直接复算自己为什么排这里。
     assert '<th class="col-points">积分</th>' in page, "玩家表没有积分这一列"
     assert render and "pointsOf(player)" in render.group(0), "积分那一列没按 pointsOf() 渲染"
+
+
+# ---------------------------------------------------------------------------
+# 一个 Account ID 改过多个名字：看板只认最近那场用的名字，群昵称优先于 Steam 昵称。
+# ---------------------------------------------------------------------------
+def nick_row(
+    account_id: int, personaname: str, player_slot: int, *, display_name: str | None = None
+) -> dict[str, object]:
+    return {
+        "account_id": account_id,
+        "player_slot": player_slot,
+        "personaname": personaname,
+        "display_name": display_name,
+        "kills": 3,
+        "deaths": 2,
+        "assists": 7,
+    }
+
+
+def nick_game(
+    match_id: int, start_time: int, players: list[dict[str, object]]
+) -> dict[str, object]:
+    return {"match_id": match_id, "start_time": start_time, "radiant_win": True, "players": players}
+
+
+def aggregate(matches: list[dict[str, object]]) -> list[dict[str, object]]:
+    """把线上那份 calculate() 交给 node 跑，取"看板会显示成什么样"。"""
+    text = APP_JS.read_text("utf-8")
+    blocks = [
+        POINTS.search(text),
+        COMPARATOR.search(text),
+        VISIBLE.search(text),
+        READ_KDA.search(text),
+        CALCULATE.search(text),
+    ]
+    assert all(blocks), "site/app.js 里找不到 calculate 依赖的那几个函数"
+    consts = re.findall(r"const\s+POINTS_PER_(?:WIN|LOSS)\s*=\s*\d+\s*;", text)
+    script = "\n".join(
+        [
+            *consts,
+            *[block.group(0) for block in blocks],
+            f"const matches = {json.dumps(matches, ensure_ascii=False)};",
+            "console.log(JSON.stringify("
+            "calculate(matches).players.map((p) => ({id: p.accountId, name: p.name, games: p.total}))"
+            "));",
+        ]
+    )
+    return node(script)  # type: ignore[return-value]
+
+
+def test_one_account_counts_once_and_shows_its_latest_nickname() -> None:
+    """同一个号先叫"节奏带师"后改叫"小林直玄"：算一个人、12 场里取最后一个名字。"""
+    matches = [
+        nick_game(1, 1_800_000_001, [nick_row(1362249826, "节奏带师", 0)]),
+        nick_game(2, 1_800_000_002, [nick_row(1362249826, "小林直玄", 0)]),
+    ]
+
+    assert aggregate(matches) == [{"id": 1362249826, "name": "小林直玄", "games": 2}]
+
+
+def test_latest_nickname_wins_even_when_matches_are_not_sorted() -> None:
+    matches = [
+        nick_game(2, 1_800_000_002, [nick_row(1362249826, "小林直玄", 0)]),
+        nick_game(1, 1_800_000_001, [nick_row(1362249826, "节奏带师", 0)]),
+    ]
+
+    assert aggregate(matches)[0]["name"] == "小林直玄"
+
+
+def test_group_nickname_beats_the_steam_nickname() -> None:
+    """names.json 填了群昵称就一直用群昵称， Steam 那边怎么改都不跟着变。"""
+    matches = [
+        nick_game(1, 1_800_000_001, [nick_row(1362249826, "节奏带师", 0, display_name="老王")]),
+        nick_game(2, 1_800_000_002, [nick_row(1362249826, "小林直玄", 0, display_name="老王")]),
+    ]
+
+    assert aggregate(matches)[0]["name"] == "老王"

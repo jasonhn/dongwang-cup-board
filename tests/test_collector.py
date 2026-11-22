@@ -8,15 +8,18 @@ from collector import (
     DEFAULT_CONFIG,
     LeagueCollectionError,
     _stable_snapshot_timestamp,
+    apply_account_identity,
     collect_league_data,
     collect_manual_data,
     collect_snapshot,
     collect_tournament_data,
     find_league_id,
+    load_account_aliases,
     load_config,
     load_display_names,
     normalise_match,
     read_manual_match_ids,
+    rekey_existing_snapshot,
     write_snapshot,
 )
 from collector import append_manual_match_ids
@@ -1228,3 +1231,200 @@ def test_load_config_rejects_a_non_boolean_zero_kda_switch(tmp_path: Path) -> No
         assert "exclude_zero_kda_matches" in str(error)
     else:
         raise AssertionError("expected LeagueCollectionError")
+
+
+# ---------------------------------------------------------------------------
+# 玩家身份：一个玩家只对应一个 Account ID，只有 account_aliases 里写明的号才合并。
+# 合并完，同一个账号改过多少个名字都由前端取"最近一场的名字"，数据层不去猜。
+# ---------------------------------------------------------------------------
+
+MAIN_ACCOUNT = 1_362_249_826
+ALT_ACCOUNT = 255_862_047
+
+
+def make_roster(rows: list[tuple[int, str]]) -> list[dict[str, Any]]:
+    """十个位置：``rows`` 给出 (account_id, personaname)，缺的位置用陪练账号补齐。"""
+    players: list[dict[str, Any]] = []
+    for index in range(10):
+        account_id, personaname = rows[index] if index < len(rows) else (900_000 + index, f"陪练 {index}")
+        players.append(
+            {
+                "account_id": account_id,
+                "personaname": personaname,
+                "player_slot": index if index < 5 else 128 + index - 5,
+                "hero_id": index + 1,
+                "kills": 4,
+                "deaths": 2,
+                "assists": 6,
+            }
+        )
+    return players
+
+
+def make_identity_match(
+    match_id: int, rows: list[tuple[int, str]], *, league_id: int = 19224
+) -> dict[str, Any]:
+    return {
+        "match_id": match_id,
+        "leagueid": league_id,
+        "start_time": 1_800_000_000 + match_id,
+        "duration": 2_400,
+        "radiant_win": True,
+        "players": make_roster(rows),
+    }
+
+
+def test_load_account_aliases_flattens_a_chain() -> None:
+    """a→b→c 拉直成 a→c：以后把中间那个号从配置里删掉，也不会把小号放回去。"""
+    assert load_account_aliases({"3": 2, "2": 1}) == {3: 1, 2: 1}
+    assert load_account_aliases({"3": "2", "2": 1}) == {3: 1, 2: 1}
+    assert load_account_aliases({}) == {}
+
+
+def test_load_account_aliases_rejects_self_merge_and_cycles() -> None:
+    try:
+        load_account_aliases({"7": 7})
+    except LeagueCollectionError as error:
+        assert "itself" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+    try:
+        load_account_aliases({"1": 2, "2": 1})
+    except LeagueCollectionError as error:
+        assert "circular" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+    try:
+        load_account_aliases({"1": "小号"})
+    except LeagueCollectionError as error:
+        assert "numeric" in str(error)
+    else:
+        raise AssertionError("expected LeagueCollectionError")
+
+
+def test_load_config_reads_account_aliases_as_account_ids(tmp_path: Path) -> None:
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"account_aliases": {"255862047": 1362249826}}), encoding="utf-8")
+
+    assert load_config(path)["account_aliases"] == {ALT_ACCOUNT: MAIN_ACCOUNT}
+
+
+def test_apply_account_identity_rewrites_the_alt_account() -> None:
+    match = normalise_match(make_identity_match(1, [(ALT_ACCOUNT, "节奏带师")]), 19224)
+
+    merged = apply_account_identity(match, {ALT_ACCOUNT: MAIN_ACCOUNT})
+    ids = [player["account_id"] for player in merged["players"]]
+
+    assert ids[0] == MAIN_ACCOUNT
+    assert ALT_ACCOUNT not in ids
+    assert merged["players"][0]["personaname"] == "节奏带师"
+
+
+def test_apply_account_identity_collapses_both_accounts_in_one_game() -> None:
+    """同一个人拿两个号挤进同一场（理论上不该发生）时，并成一行并且把 K/D/A 相加。"""
+    roster = make_roster([(MAIN_ACCOUNT, "小林直玄"), (ALT_ACCOUNT, "节奏带师")])
+    roster[0].update({"kills": 5, "deaths": 1, "assists": 9})
+    roster[1].update({"kills": 3, "deaths": 4, "assists": 2})
+    match = {"match_id": 1, "players": roster}
+
+    merged = apply_account_identity(match, {ALT_ACCOUNT: MAIN_ACCOUNT})
+    rows = [player for player in merged["players"] if player["account_id"] == MAIN_ACCOUNT]
+
+    assert len(rows) == 1
+    assert len(merged["players"]) == 9
+    assert (rows[0]["kills"], rows[0]["deaths"], rows[0]["assists"]) == (8, 5, 11)
+    assert rows[0]["personaname"] == "小林直玄"
+
+
+def test_apply_account_identity_is_idempotent() -> None:
+    aliases = {ALT_ACCOUNT: MAIN_ACCOUNT}
+    match = normalise_match(make_identity_match(1, [(ALT_ACCOUNT, "节奏带师")]), 19224)
+
+    once = apply_account_identity(match, aliases)
+    twice = apply_account_identity(once, aliases)
+    untouched = apply_account_identity(normalise_match(make_match(2), 19224), aliases)
+
+    assert twice is once
+    assert untouched is not once
+    assert untouched == normalise_match(make_match(2), 19224)
+
+
+def test_apply_account_identity_leaves_anonymous_slots_alone() -> None:
+    """公开接口看不到的位置（account_id 为空）原样保留，不编造成某个主号。"""
+    players = make_roster([(ALT_ACCOUNT, "节奏带师")])
+    players[4] = {"account_id": None, "personaname": None, "player_slot": 4, "hero_id": 1}
+    match = {"match_id": 1, "players": players}
+
+    merged = apply_account_identity(match, {ALT_ACCOUNT: MAIN_ACCOUNT})
+
+    accounts = [player["account_id"] for player in merged["players"]]
+
+    assert len(accounts) == 10
+    assert accounts.count(None) == 1
+    assert MAIN_ACCOUNT in accounts
+    assert ALT_ACCOUNT not in accounts
+
+
+def test_league_snapshot_merges_the_alt_account_into_the_main_one(tmp_path: Path) -> None:
+    """采集时就把小号换成主号，前端统计、队友表、头像自然只看到一个 ID。"""
+    client = FakeClient(
+        {
+            "/leagues/19224": {"name": "Test League"},
+            "/leagues/19224/matchIds": [1, 2],
+            "/matches/1": make_identity_match(1, [(ALT_ACCOUNT, "节奏带师")]),
+            "/matches/2": make_identity_match(2, [(MAIN_ACCOUNT, "小林直玄")]),
+        }
+    )
+
+    payload = collect_league_data(
+        league_id=19224,
+        output_path=tmp_path / "league.json",
+        refresh_recent=5,
+        client=client,  # type: ignore[arg-type]
+        names={str(MAIN_ACCOUNT): "老王"},
+        config={**DEFAULT_CONFIG, "account_aliases": {ALT_ACCOUNT: MAIN_ACCOUNT}},
+    )
+
+    per_match = {
+        match["match_id"]: [player["account_id"] for player in match["players"]]
+        for match in payload["matches"]
+    }
+    assert per_match[1][0] == MAIN_ACCOUNT
+    assert per_match[2][0] == MAIN_ACCOUNT
+    assert ALT_ACCOUNT not in {account for ids in per_match.values() for account in ids}
+    # 每场仍保留当时那个 Steam 昵称，前端按时间取最后一个名字当展示名。
+    assert payload["matches"][0]["players"][0]["personaname"] == "节奏带师"
+    assert payload["matches"][1]["players"][0]["personaname"] == "小林直玄"
+    assert {player["display_name"] for match in payload["matches"] for player in match["players"][:1]} == {
+        "老王"
+    }
+    assert payload["metadata"]["account_aliases"] == {str(ALT_ACCOUNT): MAIN_ACCOUNT}
+
+
+def test_rekey_existing_snapshot_fixes_published_data_without_collecting(tmp_path: Path) -> None:
+    """已经采集好的快照：改完配置跑一次 --rekey-only 就并过去，不联网也不改时间戳。"""
+    output = tmp_path / "league.json"
+    snapshot = {
+        "league_id": 19224,
+        "generated_at_utc": "2026-11-20T16:24:22.253346+00:00",
+        "metadata": {"matches_available": 2},
+        "matches": [
+            normalise_match(make_identity_match(1, [(ALT_ACCOUNT, "节奏带师")]), 19224),
+            normalise_match(make_identity_match(2, [(MAIN_ACCOUNT, "小林直玄")]), 19224),
+        ],
+    }
+    write_snapshot(output, snapshot)
+
+    aliases = load_account_aliases({"255862047": 1362249826})
+    assert rekey_existing_snapshot(output, aliases) == 1
+    assert rekey_existing_snapshot(output, aliases) == 0
+
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    accounts = {player["account_id"] for match in payload["matches"] for player in match["players"]}
+
+    assert ALT_ACCOUNT not in accounts
+    assert sum(1 for match in payload["matches"] for player in match["players"] if player["account_id"] == MAIN_ACCOUNT) == 2
+    assert payload["generated_at_utc"] == snapshot["generated_at_utc"]
+    assert payload["metadata"]["account_aliases"] == {str(ALT_ACCOUNT): MAIN_ACCOUNT}

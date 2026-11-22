@@ -45,6 +45,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "avatars_file": DEFAULT_AVATARS_FILE,
     "max_new_avatars": 80,
     "heroes_file": DEFAULT_HEROES_FILE,
+    # 一个玩家只对应一个 Account ID，只有群主明确说「这两个号是同一个人」时才写进来。
+    # 写法是 {"小号": 主号}：小号的战绩并进主号，看板只显示主号和最近一场的名字。
+    "account_aliases": {},
     # Matches typed in by hand, for games no public API can see (e.g. 完美世界/国服 servers).
     "overrides_file": DEFAULT_OVERRIDES_FILE,
     # Games the league aggregates but the board should ignore.
@@ -294,6 +297,7 @@ def normalise_match(
     league_id: int | None = None,
     *,
     names: dict[str, str] | None = None,
+    aliases: dict[int, int] | None = None,
     accept_unknown_league: bool = False,
 ) -> dict[str, Any]:
     match_id = int(raw.get("match_id") or 0)
@@ -333,6 +337,10 @@ def normalise_match(
         resolved_account_id = (
             int(account_id) if isinstance(account_id, int) and account_id > 0 else None
         )
+        # Swap the alt account for the main one *before* looking up the group nickname,
+        # so names.json only ever has to carry the main account id.
+        if resolved_account_id is not None and aliases:
+            resolved_account_id = aliases.get(resolved_account_id, resolved_account_id)
         normalised_players.append(
             {
                 "account_id": resolved_account_id,
@@ -453,6 +461,7 @@ def load_config(path: Path) -> dict[str, Any]:
     config["exclude_zero_kda_matches"] = _bool_option(
         config.get("exclude_zero_kda_matches"), "exclude_zero_kda_matches", DEFAULT_EXCLUDE_ZERO_KDA
     )
+    config["account_aliases"] = load_account_aliases(config.get("account_aliases"))
     config["steam_web_api_key"] = str(config.get("steam_web_api_key") or "").strip()
     return config
 
@@ -482,6 +491,162 @@ def load_display_names(path: Path) -> dict[str, str]:
             ) from None
         names[str(account_id)] = name[:40]
     return names
+
+
+def load_account_aliases(value: Any, *, source: str = "account_aliases") -> dict[int, int]:
+    """Read ``account_aliases`` into a flat ``{alt account: main account}`` map.
+
+    One player is one account id; the operator only writes entries here for games
+    where the same human owns two accounts. An ``a→b→c`` chain collapses to
+    ``a→c``, so cleaning up the middle entry later cannot resurrect an alt account.
+    """
+    if value is None or value == {}:
+        return {}
+    if not isinstance(value, dict):
+        raise LeagueCollectionError(
+            f"{source} must be a JSON object of alt account id -> main account id"
+        )
+
+    direct: dict[int, int] = {}
+    for key, target in value.items():
+        try:
+            alias = int(str(key).strip())
+            main = int(str(target).strip())
+        except (TypeError, ValueError):
+            raise LeagueCollectionError(
+                f"{source} only accepts numeric account ids: {key!r} -> {target!r}"
+            ) from None
+        if alias <= 0 or main <= 0:
+            raise LeagueCollectionError(
+                f"{source} account ids must be positive integers: {alias} -> {main}"
+            )
+        if alias == main:
+            raise LeagueCollectionError(f"{source} cannot merge account {alias} into itself")
+        direct[alias] = main
+
+    resolved: dict[int, int] = {}
+    for alias in direct:
+        seen = {alias}
+        main = direct[alias]
+        while main in direct:
+            if main in seen:
+                chain = " -> ".join(str(step) for step in sorted(seen))
+                raise LeagueCollectionError(f"{source} has a circular merge: {chain}")
+            seen.add(main)
+            main = direct[main]
+        resolved[alias] = main
+    return resolved
+
+
+def apply_account_identity(
+    match: dict[str, Any],
+    aliases: dict[int, int],
+    names: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Rewrite alt account ids in one match to their main account id.
+
+    Downstream (the board's aggregation, the 队友 table, avatars) then only ever
+    sees one id per human, which is what makes "same account, renamed several
+    times" and "one human, two accounts" behave the same way.
+
+    Merging is idempotent and returns the original object when nothing changes,
+    so a re-run does not churn the committed snapshot. If both ids really do show
+    up in the same roster, the two rows collapse into one and K/D/A are summed
+    rather than double counted.
+
+    ``names`` is the 群昵称 map: it is keyed by the main account id, so a rewritten
+    row has to re-read it or that player would silently lose their group nickname.
+    """
+    if not aliases:
+        return match
+
+    players: list[dict[str, Any]] = []
+    rows_by_account: dict[int, dict[str, Any]] = {}
+    changed = False
+
+    for player in match.get("players", []):
+        account_id = player.get("account_id")
+        numeric = int(account_id) if isinstance(account_id, int) and account_id > 0 else None
+        main = aliases.get(numeric, numeric) if numeric is not None else None
+        if main is None:
+            # Anonymous slot (or a shape we do not understand): leave the row untouched.
+            players.append(player)
+            continue
+        if main != account_id:
+            changed = True
+
+        merged = rows_by_account.get(main)
+        if merged is None:
+            row = {**player, "account_id": main}
+            if main != account_id and names is not None:
+                row["display_name"] = names.get(str(main))
+            players.append(row)
+            rows_by_account[main] = row
+            continue
+
+        changed = True
+        for field in ("kills", "deaths", "assists"):
+            left, right = merged.get(field), player.get(field)
+            if left is None or right is None:
+                merged[field] = None if left is None and right is None else (
+                    left if left is not None else right
+                )
+            else:
+                merged[field] = int(left) + int(right)
+        merged["personaname"] = merged.get("personaname") or player.get("personaname")
+
+    if not changed:
+        return match
+    return {**match, "players": players}
+
+
+def rekey_existing_snapshot(
+    path: Path,
+    aliases: dict[int, int],
+    names: dict[str, str] | None = None,
+) -> int:
+    """Apply ``account_aliases`` to an already published snapshot, offline.
+
+    Returns how many matches actually changed. Collection re-keys every run
+    anyway; this exists so a freshly declared alias is reflected in the committed
+    data without spending API quota re-reading matches that are already cached.
+
+    Timestamps are left alone: this is a bookkeeping pass over data we already
+    collected, not a new collection.
+    """
+    if not path.exists():
+        raise LeagueCollectionError(f"Snapshot not found: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise LeagueCollectionError(f"Snapshot {path} is not valid JSON: {error}") from error
+    if not isinstance(payload, dict) or not isinstance(payload.get("matches"), list):
+        raise LeagueCollectionError(f"Snapshot {path} has no matches list")
+
+    updated: list[Any] = []
+    changed = 0
+    for match in payload["matches"]:
+        if not isinstance(match, dict):
+            updated.append(match)
+            continue
+        rewritten = apply_account_identity(match, aliases, names)
+        if rewritten is not match:
+            changed += 1
+        updated.append(rewritten)
+    payload["matches"] = updated
+    payload.setdefault("metadata", {})
+    if isinstance(payload["metadata"], dict):
+        payload["metadata"]["account_aliases"] = {
+            str(alias): main for alias, main in sorted(aliases.items())
+        }
+
+    write_snapshot(path, payload)
+    return changed
+
+
+def _aliases_from(config: dict[str, Any]) -> dict[int, int]:
+    """Take ``account_aliases`` out of a config dict, parsed or raw."""
+    return load_account_aliases(config.get("account_aliases") or {})
 
 
 def load_avatar_cache(path: Path) -> dict[str, str]:
@@ -844,7 +1009,11 @@ def append_manual_match_ids(path: Path, match_ids: list[int]) -> list[int]:
     return new_ids
 
 
-def load_match_overrides(path: Path, names: dict[str, str] | None = None) -> dict[int, dict[str, Any]]:
+def load_match_overrides(
+    path: Path,
+    names: dict[str, str] | None = None,
+    aliases: dict[int, int] | None = None,
+) -> dict[int, dict[str, Any]]:
     """Read hand-entered matches from overrides.json.
 
     Games played on 完美世界/国服 servers are not exposed by Valve's public API or
@@ -877,7 +1046,7 @@ def load_match_overrides(path: Path, names: dict[str, str] | None = None) -> dic
         }
         match_id = int(raw_match["match_id"] or 0)
         try:
-            overrides[match_id] = normalise_match(raw_match, None, names=names)
+            overrides[match_id] = normalise_match(raw_match, None, names=names, aliases=aliases)
         except LeagueCollectionError as error:
             raise LeagueCollectionError(f"Match override {match_id or '<unknown>'} in {path}: {error}") from error
     return overrides
@@ -996,6 +1165,7 @@ def _collect_matches(
     exclude_ids: list[int] | None = None,
     exclude_game_modes: list[int] | None = None,
     exclude_zero_kda: bool = DEFAULT_EXCLUDE_ZERO_KDA,
+    aliases: dict[int, int] | None = None,
 ) -> tuple[dict[int, dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     existing = _load_existing(output_path, cache_league_id)
     refresh_ids = set(match_ids[-max(0, refresh_recent) :])
@@ -1034,7 +1204,10 @@ def _collect_matches(
         if cached is not None and match_id not in refresh_ids and not needs_stats:
             if skipped(match_id, cached):
                 continue
-            matches[match_id] = _apply_names(cached, names)
+            # Re-key first, then re-read the nickname map: a snapshot written before
+            # the alias was declared still carries the alt account id.
+            rekeyed = apply_account_identity(cached, aliases or {}, names)
+            matches[match_id] = _apply_names(rekeyed, names)
             continue
         try:
             raw = client.get_json(f"/matches/{match_id}")
@@ -1044,6 +1217,7 @@ def _collect_matches(
                 raw,
                 expected_league_id,
                 names=names,
+                aliases=aliases,
                 accept_unknown_league=accept_unknown_league,
             )
             if skipped(match_id, normalised):
@@ -1085,6 +1259,12 @@ def _build_payload(
     override_ids: list[int] | None = None,
     excluded: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    # Single funnel for every collect_mode, so account identity is normalised here
+    # once instead of in each collection path (and the roster checks below see the
+    # merged rows too).
+    aliases = _aliases_from(config)
+    ordered_matches = [apply_account_identity(match, aliases) for match in ordered_matches]
+
     anonymous_slots = sum(
         1
         for match in ordered_matches
@@ -1116,6 +1296,7 @@ def _build_payload(
             "anonymous_daily_quota_exhausted": client.free_exhausted,
             "manual_override_match_ids": sorted(override_ids or []),
             "excluded_matches": excluded or [],
+            "account_aliases": {str(alias): main for alias, main in sorted(aliases.items())},
         },
         "matches": ordered_matches,
     }
@@ -1156,6 +1337,7 @@ def collect_league_data(
             "exclude_zero_kda_matches",
             DEFAULT_EXCLUDE_ZERO_KDA,
         ),
+        aliases=_aliases_from(resolved),
     )
 
     return _build_payload(
@@ -1201,6 +1383,7 @@ def collect_manual_data(
             "exclude_zero_kda_matches",
             DEFAULT_EXCLUDE_ZERO_KDA,
         ),
+        aliases=_aliases_from(resolved),
     )
 
     return _build_payload(
@@ -1283,6 +1466,7 @@ def collect_tournament_data(
             "exclude_zero_kda_matches",
             DEFAULT_EXCLUDE_ZERO_KDA,
         ),
+        aliases=_aliases_from(config),
     )
 
     return _build_payload(
@@ -1498,6 +1682,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="MATCH_ID",
         help="Register one or more match ids in matches.txt before collecting",
     )
+    parser.add_argument(
+        "--rekey-only",
+        action="store_true",
+        help="只按 config.json 的 account_aliases 重写已有快照（不联网、不采集）",
+    )
     return parser
 
 
@@ -1510,8 +1699,24 @@ def main(argv: list[str] | None = None) -> int:
         config["collect_mode"] = args.mode
     if args.max_tournament_matches is not None:
         config["max_tournament_matches"] = max(1, int(args.max_tournament_matches))
+
+    if args.rekey_only:
+        aliases = config["account_aliases"]
+        if not aliases:
+            print("config.json 的 account_aliases 是空的，没有需要合并的账号。")
+            return 0
+        output = Path(config["output"])
+        names = load_display_names(Path(config["names_file"]))
+        changed = rekey_existing_snapshot(output, aliases, names)
+        merged = "，".join(f"{alias} → {main}" for alias, main in sorted(aliases.items()))
+        print(f"账号合并规则：{merged}")
+        print(f"{output} 里 {changed} 场比赛已按主账号归一。")
+        return 0
+
     names = load_display_names(Path(config["names_file"]))
-    overrides = load_match_overrides(Path(config["overrides_file"]), names=names)
+    overrides = load_match_overrides(
+        Path(config["overrides_file"]), names=names, aliases=config["account_aliases"]
+    )
     if overrides:
         print(f"手工补录 {len(overrides)} 场：{', '.join(str(match_id) for match_id in sorted(overrides))}")
 
