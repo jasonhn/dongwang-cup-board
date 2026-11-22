@@ -14,6 +14,19 @@
   --muted: #765b50;
   --line: rgba(137, 66, 23, 0.2);
   --shadow: 0 20px 60px rgba(69, 0, 13, 0.22);
+  /* 标题那行毛笔字：字体走自托管子集，安卓手机上也能拿到这款楷体，不会退化成系统衬线体。
+     子集由 scripts/build_title_font.py 生成，授权见 site/fonts/OFL-MaShanZheng.txt。 */
+  --font-display: "懂王榜楷书", "Ma Shan Zheng", "Kaiti SC", STKaiti, KaiTi, serif;
+  /* 系统楷体优先本机最顺手的那一个：iOS/macOS 是 Kaiti SC，Windows 是 KaiTi。 */
+  --font-kai: "Kaiti SC", STKaiti, KaiTi, "KaiTi_GB2312", "TW-Kai", "AR PL KaitiM GB", "Noto Serif CJK SC", serif;
+}
+
+@font-face {
+  font-family: "懂王榜楷书";
+  src: url("./fonts/title-display.woff2") format("woff2");
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
 }
 
 * {
@@ -144,17 +157,22 @@ button {
   position: relative;
   margin: 0;
   color: transparent;
-  font-family: STKaiti, KaiTi, "FZKai-Z03", serif;
-  font-size: clamp(3.8rem, 9vw, 7.2rem);
-  font-weight: 900;
-  line-height: 0.96;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  background: linear-gradient(180deg, #fff5c8 0%, #ffd45f 38%, #e69c1d 72%, #fff1a7 100%);
+  font-family: var(--font-display);
+  /* 毛笔楷只有一档字重：写 900 会触发浏览器的假粗体，笔画糊成一团，所以老实写 normal。 */
+  font-weight: normal;
+  font-size: clamp(2.6rem, 8.4vw, 6.4rem);
+  line-height: 1.12;
+  letter-spacing: 0.05em;
+  /* 允许换行：手机竖屏放不下时自动折成两行，而不是被 .hero 的 overflow 裁掉。 */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  background: linear-gradient(180deg, #fffae8 0%, #ffe89a 26%, #f8c53f 50%, #d99318 68%, #ffeeb0 100%);
   background-clip: text;
   -webkit-background-clip: text;
-  -webkit-text-stroke: 2px #7b3102;
-  filter: drop-shadow(0 5px 0 #76130c) drop-shadow(0 14px 14px rgba(42, 0, 5, 0.46));
+  /* 描边收细：毛笔字笔画本就细，粗描边会把金色填色盖住，只剩一圈棕边。 */
+  -webkit-text-stroke: 1px rgba(109, 41, 4, 0.55);
+  filter: drop-shadow(0 3px 0 #7d1a0d) drop-shadow(0 9px 16px rgba(42, 0, 5, 0.42));
 }
 
 .hero-title::after {
@@ -163,14 +181,14 @@ button {
   inset: 0;
   z-index: -1;
   color: #7a0815;
-  transform: translate(5px, 7px);
-  -webkit-text-stroke: 4px #4d0009;
+  transform: translate(4px, 6px);
+  -webkit-text-stroke: 3px #4d0009;
 }
 
 .hero-subtitle {
   margin: 19px 0 0;
   color: #fff5d3;
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: clamp(1.05rem, 2vw, 1.42rem);
   letter-spacing: 0.1em;
 }
@@ -190,7 +208,7 @@ button {
   place-items: center;
   color: var(--gold-300);
   border: 2px solid var(--gold-300);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: 1.15rem;
   font-weight: 800;
   transform: rotate(-4deg);
@@ -238,7 +256,7 @@ button {
   border: 2px solid var(--gold-300);
   border-radius: 50%;
   color: var(--gold-300);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: 1.1rem;
   font-weight: 800;
 }
@@ -326,7 +344,7 @@ button {
   border: 3px solid var(--gold-300);
   border-radius: 45% 45% 35% 35%;
   color: var(--gold-100);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: 2rem;
   font-weight: 800;
   background:
@@ -412,7 +430,7 @@ button {
 h2 {
   margin: 0;
   color: var(--red-900);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: clamp(1.8rem, 3vw, 2.5rem);
 }
 
@@ -500,7 +518,7 @@ h2 {
   place-items: center;
   border: 1px solid var(--gold-500);
   color: var(--red-800);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   background: var(--gold-100);
   transform: rotate(45deg);
 }
@@ -663,7 +681,7 @@ h2 {
   top: 15px;
   right: 18px;
   color: rgba(255, 213, 107, 0.35);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: 3.5rem;
   font-weight: 900;
 }
@@ -1070,7 +1088,7 @@ th:last-child {
   place-items: center;
   border: 2px dashed var(--gold-500);
   color: var(--red-700);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: 2rem;
   transform: rotate(4deg);
 }
@@ -1096,7 +1114,7 @@ th:last-child {
   place-items: center;
   border: 2px solid var(--gold-300);
   color: var(--gold-300);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   font-size: 1.4rem;
   transform: rotate(-3deg);
 }
@@ -1116,7 +1134,7 @@ footer {
   gap: 18px;
   padding: 28px 20px 42px;
   color: rgba(255, 228, 150, 0.82);
-  font-family: STKaiti, KaiTi, serif;
+  font-family: var(--font-kai);
   letter-spacing: 0.12em;
   text-align: center;
 }
@@ -1169,8 +1187,10 @@ footer p {
   }
 
   .hero-title {
-    font-size: clamp(3.1rem, 17vw, 4.8rem);
-    letter-spacing: 0;
+    /* 13vw × 6 个字 ≈ 80vw，六个字的标题在手机上仍是一行；标题再长就自动折成均衡的两行。 */
+    font-size: clamp(2.2rem, 13vw, 4rem);
+    letter-spacing: 0.02em;
+    line-height: 1.14;
   }
 
   .hero-kicker {

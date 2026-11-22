@@ -10,7 +10,15 @@
     />
     <title>Dota 2 内战战绩看板</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css?v=20261121-1" />
+    <!-- 标题那行毛笔字：提前抢在样式表之前开始下载，免得手机上标题先以楷体闪一下。 -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      href="./fonts/title-display.woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="./styles.css?v=20261122-1" />
     <script src="./app.js?v=20261121-1" type="module"></script>
   </head>
   <body>

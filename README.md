@@ -365,6 +365,21 @@ E[Δ] = k · (胜率 − ½) / ( (n + k)(n + k + 1) )
 
 手机端（宽度 ≤ 640px）会自动隐藏 Account ID 列、总场数列和弹窗里的日期列，**积分、胜、负、胜率、总 K/D/A 始终保留**：Account ID 变成玩家名字下面那个可点的按钮，弹窗里也会隐藏 Account ID 和最近同队两列，表格不需要横向滚动。
 
+## 标题那行毛笔字
+
+`config.json` 里 `site.title` 那行大字（现在是毛笔楷体）用的是**自托管的字体子集**：`site/fonts/title-display.woff2`，只截取页面真正用到的字，整个文件 180 KB 左右。之所以自己托管而不挂 Google Fonts：群里多半是在手机上打开的，墙内 `fonts.gstatic.com` 时快时慢，标题会先显示成系统默认字体、甚至闪一下，而且安卓手机本身不带楷体。
+
+- 字体是 Ma Shan Zheng（马善政毛笔楷书），SIL OFL 1.1 授权，允许随仓库再分发，授权原文在 `site/fonts/OFL-MaShanZheng.txt`。
+- **改了标题文案、或者页面新增了字**，那几个字可能不在这份子集里，会掉回系统楷体。重跑一次就补上：
+
+```bash
+.venv/bin/pip install fonttools brotli
+.venv/bin/python scripts/build_title_font.py
+```
+
+- 想换别的手写体：`scripts/build_title_font.py` 顶部改 `FONT_URL`，再把 `site/styles.css` 里 `--font-display` 的字体名对齐即可。候选都要挑 OFL 授权的中文字体（站酷系列、思源系列都可以）。
+- 标题在手机竖屏下**允许换行**：六个字仍是一行，标题更长会折成左右均衡的两行，不会再被页头的 `overflow: hidden` 裁掉半截。
+
 ## 前提与坑
 
 - **不需要任何账号登录。** 看板是纯静态网页，浏览器只读仓库里的 `site/data/league.json`，不会直连 OpenDota，也不需要 Steam 账号或密码。数据由 `collector.py` 在本地或 GitHub Actions 里抓取，抓取结果作为文件提交进仓库。`league`、`manual`、`both` 模式匿名即可；`OPENDOTA_API_KEY` 和 `tournament` 模式用的 `STEAM_WEB_API_KEY` 都只是 API 令牌，不是登录，而且只存在 `.env` 或 GitHub Secrets 里。
@@ -386,9 +401,11 @@ matches.txt              manual 模式的比赛清单
 overrides.json           手工补录的比赛（公开接口查不到的场次，见「手工补录」）
 collector.py             抓 OpenDota 数据，写 site/data/league.json、avatars.json、heroes.json
 site/                    纯静态看板（index.html / app.js / styles.css / data/league.json / data/avatars.json / data/heroes.json）
+site/fonts/              标题字体的子集（title-display.woff2）与字体授权原文
 tests/test_collector.py  采集逻辑测试
 tests/test_ranking.py    排名算法测试（把 app.js 里的比较函数交给 node 跑）
 scripts/rank_stats.py    积分标准的数据体检：口径体检、榜单与 v1/v2/v3 名次对照、同分与并列分组、44.4% 盈亏平衡线与比值 `5 : 4` 敏感性扫描、为什么放弃收缩式、置换检验与功效分析，一条命令复现
+scripts/build_title_font.py  重新生成标题字体子集（改了标题文案后用）
 docs/排名算法.md         排名标准的完整推导（记号、命题与证明、被否方案、功效分析）
 docs/执行标准.md         比赛认定与统计口径的执行标准（哪些场算、谁的分算给谁、谁能改规则）
 .github/workflows/pages.yml  每 15 分钟刷新 + 部署 GitHub Pages
