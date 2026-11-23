@@ -16,12 +16,12 @@
     "group_wechat": "Greg-Mind",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-22T23:58:02.757729+00:00",
+  "generated_at_utc": "2026-11-23T18:09:19.827215+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 33,
-    "matches_available": 31,
+    "match_ids_returned": 37,
+    "matches_available": 35,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -3450,6 +3450,446 @@
           "kills": 8,
           "deaths": 9,
           "assists": 27
+        }
+      ]
+    },
+    {
+      "match_id": 9102426164,
+      "league_id": 19905,
+      "start_time": 1795436711,
+      "duration": 2826,
+      "radiant_win": false,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 136502788,
+          "personaname": "霸刀宋三",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 14,
+          "kills": 3,
+          "deaths": 12,
+          "assists": 7
+        },
+        {
+          "account_id": 131204688,
+          "personaname": "一支穿云箭",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 21,
+          "kills": 5,
+          "deaths": 6,
+          "assists": 5
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 88,
+          "kills": 3,
+          "deaths": 13,
+          "assists": 12
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 39,
+          "kills": 4,
+          "deaths": 5,
+          "assists": 9
+        },
+        {
+          "account_id": 220265151,
+          "personaname": "抖音DOTA2小面羊",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 38,
+          "kills": 11,
+          "deaths": 5,
+          "assists": 9
+        },
+        {
+          "account_id": 170923779,
+          "personaname": "Freeman",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 69,
+          "kills": 6,
+          "deaths": 4,
+          "assists": 20
+        },
+        {
+          "account_id": 1362249826,
+          "personaname": "小林直玄",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 102,
+          "kills": 14,
+          "deaths": 6,
+          "assists": 17
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 74,
+          "kills": 11,
+          "deaths": 1,
+          "assists": 20
+        },
+        {
+          "account_id": 354351099,
+          "personaname": "YoYo",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 35,
+          "kills": 7,
+          "deaths": 5,
+          "assists": 20
+        },
+        {
+          "account_id": 139291253,
+          "personaname": "NuNu",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 86,
+          "kills": 3,
+          "deaths": 10,
+          "assists": 23
+        }
+      ]
+    },
+    {
+      "match_id": 9102511129,
+      "league_id": 19905,
+      "start_time": 1795440668,
+      "duration": 2040,
+      "radiant_win": true,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 44,
+          "kills": 11,
+          "deaths": 6,
+          "assists": 6
+        },
+        {
+          "account_id": 136502788,
+          "personaname": "霸刀宋三",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 26,
+          "kills": 0,
+          "deaths": 7,
+          "assists": 13
+        },
+        {
+          "account_id": 112386731,
+          "personaname": "开心",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 17,
+          "kills": 11,
+          "deaths": 1,
+          "assists": 10
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 85,
+          "kills": 6,
+          "deaths": 5,
+          "assists": 20
+        },
+        {
+          "account_id": 220265151,
+          "personaname": "抖音DOTA2小面羊",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 104,
+          "kills": 8,
+          "deaths": 4,
+          "assists": 9
+        },
+        {
+          "account_id": 139291253,
+          "personaname": "NuNu",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 79,
+          "kills": 5,
+          "deaths": 9,
+          "assists": 9
+        },
+        {
+          "account_id": 123942225,
+          "personaname": "胆小菇QAQ",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 101,
+          "kills": 9,
+          "deaths": 6,
+          "assists": 4
+        },
+        {
+          "account_id": 354351099,
+          "personaname": "YoYo",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 35,
+          "kills": 4,
+          "deaths": 9,
+          "assists": 8
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 135,
+          "kills": 2,
+          "deaths": 8,
+          "assists": 12
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 103,
+          "kills": 3,
+          "deaths": 4,
+          "assists": 8
+        }
+      ]
+    },
+    {
+      "match_id": 9102584547,
+      "league_id": 19905,
+      "start_time": 1795443789,
+      "duration": 1599,
+      "radiant_win": false,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 81,
+          "kills": 3,
+          "deaths": 4,
+          "assists": 6
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 18,
+          "kills": 2,
+          "deaths": 6,
+          "assists": 4
+        },
+        {
+          "account_id": 136502788,
+          "personaname": "霸刀宋三",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 25,
+          "kills": 3,
+          "deaths": 5,
+          "assists": 3
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 105,
+          "kills": 2,
+          "deaths": 2,
+          "assists": 7
+        },
+        {
+          "account_id": 188517130,
+          "personaname": "悟天克斯",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 87,
+          "kills": 3,
+          "deaths": 3,
+          "assists": 7
+        },
+        {
+          "account_id": 139291253,
+          "personaname": "NuNu",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 86,
+          "kills": 3,
+          "deaths": 3,
+          "assists": 12
+        },
+        {
+          "account_id": 354351099,
+          "personaname": "YoYo",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 26,
+          "kills": 1,
+          "deaths": 2,
+          "assists": 6
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 49,
+          "kills": 1,
+          "deaths": 1,
+          "assists": 11
+        },
+        {
+          "account_id": 112386731,
+          "personaname": "开心",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 36,
+          "kills": 5,
+          "deaths": 3,
+          "assists": 3
+        },
+        {
+          "account_id": 220265151,
+          "personaname": "抖音DOTA2小面羊",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 28,
+          "kills": 10,
+          "deaths": 4,
+          "assists": 8
+        }
+      ]
+    },
+    {
+      "match_id": 9102648249,
+      "league_id": 19905,
+      "start_time": 1795446499,
+      "duration": 3049,
+      "radiant_win": true,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 139291253,
+          "personaname": "NuNu",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 86,
+          "kills": 1,
+          "deaths": 10,
+          "assists": 26
+        },
+        {
+          "account_id": 354351099,
+          "personaname": "YoYo",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 101,
+          "kills": 7,
+          "deaths": 11,
+          "assists": 10
+        },
+        {
+          "account_id": 881797587,
+          "personaname": "霍格沃茨年级第一",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 29,
+          "kills": 4,
+          "deaths": 5,
+          "assists": 21
+        },
+        {
+          "account_id": 181438891,
+          "personaname": ".",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 63,
+          "kills": 12,
+          "deaths": 5,
+          "assists": 16
+        },
+        {
+          "account_id": 220265151,
+          "personaname": "抖音DOTA2小面羊",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 98,
+          "kills": 14,
+          "deaths": 5,
+          "assists": 17
+        },
+        {
+          "account_id": 112386731,
+          "personaname": "开心",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 1,
+          "kills": 6,
+          "deaths": 6,
+          "assists": 9
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 2,
+          "kills": 9,
+          "deaths": 8,
+          "assists": 12
+        },
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 113,
+          "kills": 7,
+          "deaths": 7,
+          "assists": 16
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 114,
+          "kills": 9,
+          "deaths": 7,
+          "assists": 15
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 78,
+          "kills": 4,
+          "deaths": 11,
+          "assists": 23
         }
       ]
     }
