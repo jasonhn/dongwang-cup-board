@@ -16,12 +16,12 @@
     "group_wechat": "Greg-Mind",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-23T18:09:19.827215+00:00",
+  "generated_at_utc": "2026-11-24T14:34:53.058347+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 37,
-    "matches_available": 35,
+    "match_ids_returned": 38,
+    "matches_available": 36,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -3890,6 +3890,116 @@
           "kills": 4,
           "deaths": 11,
           "assists": 23
+        }
+      ]
+    },
+    {
+      "match_id": 9103680409,
+      "league_id": 19905,
+      "start_time": 1795523144,
+      "duration": 2452,
+      "radiant_win": true,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 129964895,
+          "personaname": "Monkey see Monkey do",
+          "display_name": "Monkey see Monkey do",
+          "player_slot": 0,
+          "hero_id": 68,
+          "kills": 3,
+          "deaths": 3,
+          "assists": 29
+        },
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 35,
+          "kills": 14,
+          "deaths": 8,
+          "assists": 22
+        },
+        {
+          "account_id": 139060904,
+          "personaname": "废冢荒台。",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 57,
+          "kills": 9,
+          "deaths": 7,
+          "assists": 21
+        },
+        {
+          "account_id": 146266883,
+          "personaname": "懂王™",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 86,
+          "kills": 6,
+          "deaths": 4,
+          "assists": 33
+        },
+        {
+          "account_id": 141249204,
+          "personaname": "g",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 42,
+          "kills": 20,
+          "deaths": 5,
+          "assists": 24
+        },
+        {
+          "account_id": 188517130,
+          "personaname": "悟天克斯",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 85,
+          "kills": 4,
+          "deaths": 14,
+          "assists": 12
+        },
+        {
+          "account_id": 1362249826,
+          "personaname": "小林直玄",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 102,
+          "kills": 5,
+          "deaths": 8,
+          "assists": 11
+        },
+        {
+          "account_id": 142200410,
+          "personaname": "真诚是必杀技",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 21,
+          "kills": 5,
+          "deaths": 8,
+          "assists": 5
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 29,
+          "kills": 4,
+          "deaths": 11,
+          "assists": 14
+        },
+        {
+          "account_id": 195588330,
+          "personaname": "KKK",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 30,
+          "kills": 9,
+          "deaths": 11,
+          "assists": 7
         }
       ]
     }
