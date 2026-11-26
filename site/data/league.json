@@ -16,12 +16,12 @@
     "group_wechat": "Greg-Mind",
     "description": "懂王杯 Dota 2 内战战绩看板：按时间筛选玩家胜负与组队胜率。"
   },
-  "generated_at_utc": "2026-11-25T16:05:13.800927+00:00",
+  "generated_at_utc": "2026-11-26T18:39:44.026158+00:00",
   "time_zone": "Asia/Shanghai",
   "source": "OpenDota public API",
   "metadata": {
-    "match_ids_returned": 43,
-    "matches_available": 41,
+    "match_ids_returned": 46,
+    "matches_available": 44,
     "unavailable_matches": [],
     "anonymous_player_slots": 0,
     "incomplete_roster_match_ids": [],
@@ -4550,6 +4550,336 @@
           "kills": 6,
           "deaths": 10,
           "assists": 8
+        }
+      ]
+    },
+    {
+      "match_id": 9106196604,
+      "league_id": 19905,
+      "start_time": 1795697004,
+      "duration": 2003,
+      "radiant_win": false,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 405434331,
+          "personaname": "Ales1aฅʕ•̫͡•ʔฅ",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 54,
+          "kills": 5,
+          "deaths": 6,
+          "assists": 8
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 57,
+          "kills": 3,
+          "deaths": 9,
+          "assists": 6
+        },
+        {
+          "account_id": 86800428,
+          "personaname": "为了信仰",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 119,
+          "kills": 5,
+          "deaths": 17,
+          "assists": 7
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 42,
+          "kills": 6,
+          "deaths": 8,
+          "assists": 7
+        },
+        {
+          "account_id": 136502788,
+          "personaname": "霸刀宋三",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 26,
+          "kills": 2,
+          "deaths": 12,
+          "assists": 9
+        },
+        {
+          "account_id": 202188193,
+          "personaname": "千秋",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 69,
+          "kills": 7,
+          "deaths": 9,
+          "assists": 13
+        },
+        {
+          "account_id": 342710064,
+          "personaname": "搞心态的神",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 16,
+          "kills": 12,
+          "deaths": 1,
+          "assists": 21
+        },
+        {
+          "account_id": 483958320,
+          "personaname": "念头通达",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 86,
+          "kills": 5,
+          "deaths": 8,
+          "assists": 32
+        },
+        {
+          "account_id": 136981119,
+          "personaname": "Linh Cua",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 87,
+          "kills": 6,
+          "deaths": 1,
+          "assists": 27
+        },
+        {
+          "account_id": 182022624,
+          "personaname": "对不良诱惑说不要",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 28,
+          "kills": 22,
+          "deaths": 3,
+          "assists": 13
+        }
+      ]
+    },
+    {
+      "match_id": 9106264268,
+      "league_id": 19905,
+      "start_time": 1795700153,
+      "duration": 3029,
+      "radiant_win": false,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 483958320,
+          "personaname": "念头通达",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 64,
+          "kills": 4,
+          "deaths": 13,
+          "assists": 18
+        },
+        {
+          "account_id": 895802137,
+          "personaname": "苏锵锵",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 93,
+          "kills": 16,
+          "deaths": 6,
+          "assists": 9
+        },
+        {
+          "account_id": 166227714,
+          "personaname": "绿箭侠",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 14,
+          "kills": 1,
+          "deaths": 16,
+          "assists": 13
+        },
+        {
+          "account_id": 140195406,
+          "personaname": "梆梆不梆梆",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 16,
+          "kills": 5,
+          "deaths": 10,
+          "assists": 19
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 2,
+          "kills": 7,
+          "deaths": 14,
+          "assists": 9
+        },
+        {
+          "account_id": 86800428,
+          "personaname": "为了信仰",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 30,
+          "kills": 10,
+          "deaths": 12,
+          "assists": 20
+        },
+        {
+          "account_id": 136502788,
+          "personaname": "霸刀宋三",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 21,
+          "kills": 4,
+          "deaths": 8,
+          "assists": 29
+        },
+        {
+          "account_id": 173581286,
+          "personaname": "nika",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 23,
+          "kills": 15,
+          "deaths": 4,
+          "assists": 27
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 8,
+          "kills": 21,
+          "deaths": 2,
+          "assists": 13
+        },
+        {
+          "account_id": 405434331,
+          "personaname": "Ales1aฅʕ•̫͡•ʔฅ",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 77,
+          "kills": 8,
+          "deaths": 7,
+          "assists": 29
+        }
+      ]
+    },
+    {
+      "match_id": 9106368253,
+      "league_id": 19905,
+      "start_time": 1795704573,
+      "duration": 3044,
+      "radiant_win": true,
+      "game_mode": 2,
+      "players": [
+        {
+          "account_id": 147584915,
+          "personaname": "女友太用力害我变直女",
+          "display_name": null,
+          "player_slot": 0,
+          "hero_id": 65,
+          "kills": 13,
+          "deaths": 8,
+          "assists": 12
+        },
+        {
+          "account_id": 86800428,
+          "personaname": "为了信仰",
+          "display_name": null,
+          "player_slot": 1,
+          "hero_id": 31,
+          "kills": 3,
+          "deaths": 10,
+          "assists": 19
+        },
+        {
+          "account_id": 173581286,
+          "personaname": "nika",
+          "display_name": null,
+          "player_slot": 2,
+          "hero_id": 47,
+          "kills": 14,
+          "deaths": 6,
+          "assists": 17
+        },
+        {
+          "account_id": 193825662,
+          "personaname": "卖鱼！",
+          "display_name": null,
+          "player_slot": 3,
+          "hero_id": 102,
+          "kills": 7,
+          "deaths": 5,
+          "assists": 13
+        },
+        {
+          "account_id": 483958320,
+          "personaname": "念头通达",
+          "display_name": null,
+          "player_slot": 4,
+          "hero_id": 87,
+          "kills": 0,
+          "deaths": 10,
+          "assists": 30
+        },
+        {
+          "account_id": 188517130,
+          "personaname": "悟天克斯",
+          "display_name": null,
+          "player_slot": 128,
+          "hero_id": 68,
+          "kills": 2,
+          "deaths": 9,
+          "assists": 15
+        },
+        {
+          "account_id": 136312911,
+          "personaname": "抖音Dota2.Unique_K",
+          "display_name": null,
+          "player_slot": 129,
+          "hero_id": 78,
+          "kills": 6,
+          "deaths": 6,
+          "assists": 16
+        },
+        {
+          "account_id": 136502788,
+          "personaname": "霸刀宋三",
+          "display_name": null,
+          "player_slot": 130,
+          "hero_id": 93,
+          "kills": 3,
+          "deaths": 9,
+          "assists": 5
+        },
+        {
+          "account_id": 140195406,
+          "personaname": "梆梆不梆梆",
+          "display_name": null,
+          "player_slot": 131,
+          "hero_id": 21,
+          "kills": 21,
+          "deaths": 5,
+          "assists": 8
+        },
+        {
+          "account_id": 182022624,
+          "personaname": "对不良诱惑说不要",
+          "display_name": null,
+          "player_slot": 132,
+          "hero_id": 98,
+          "kills": 7,
+          "deaths": 8,
+          "assists": 9
         }
       ]
     }
